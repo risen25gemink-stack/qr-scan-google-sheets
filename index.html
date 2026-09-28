@@ -138,7 +138,7 @@
 
   <script>
     const GOOGLE_SHEETS_API =
-      "https://script.google.com/macros/s/AKfycbwGO3BBMfNz5JzEeCsYoWgfc7TNRR4KPl48NBHFiJAMIz9LuNFFK9ekTKVx7OxQcfQMkg/exec";
+      "https://script.google.com/macros/s/AKfycbyXxXcEbeefo7Cbwe_Ihrp1N01mKgd1mhhiVbXSEEBPFR3_Aq_NQS7Jt0_JVUoTHP79/exec";
 
     const statusElement = document.getElementById("status");
     const resultElement = document.getElementById("scanResult");
@@ -168,10 +168,7 @@
       const now = new Date().toLocaleString("id-ID");
 
       values.forEach(value => {
-        history.unshift({
-          value,
-          time: now
-        });
+        history.unshift({ value, time: now });
       });
 
       renderHistory();
@@ -222,35 +219,26 @@
     }
 
     async function saveToGoogleSheets() {
-      if (lastScanValues.length === 0 || isSaving) {
-        return;
-      }
+      if (lastScanValues.length === 0 || isSaving) return;
 
       isSaving = true;
       saveButton.disabled = true;
       saveButton.textContent = "Menyimpan...";
 
-      const payload = {
-        items: lastScanValues
-      };
-
       try {
-        /*
-         * text/plain membuat request POST tetap sederhana sehingga
-         * tidak memerlukan preflight OPTIONS. Apps Script membaca
-         * JSON dari e.postData.contents.
-         */
         await fetch(GOOGLE_SHEETS_API, {
           method: "POST",
           mode: "no-cors",
           headers: {
             "Content-Type": "text/plain;charset=utf-8"
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            items: lastScanValues
+          })
         });
 
         setStatus(
-          `Data dikirim ke Google Sheets: ${lastScanValues.length} item. Silakan cek Sheet untuk verifikasi.`
+          `Data dikirim ke Google Sheets: ${lastScanValues.length} item. Silakan cek Sheet.`
         );
       } catch (error) {
         console.error(error);
@@ -267,9 +255,7 @@
     }
 
     async function startScanner() {
-      if (scannerRunning) {
-        return;
-      }
+      if (scannerRunning) return;
 
       try {
         if (!scanner) {
@@ -311,9 +297,7 @@
     }
 
     startButton.addEventListener("click", async () => {
-      if (!scannerRunning) {
-        await startScanner();
-      }
+      if (!scannerRunning) await startScanner();
     });
 
     saveButton.addEventListener("click", saveToGoogleSheets);
