@@ -205,7 +205,7 @@
       <div id="counter" class="counter">0 item siap disimpan.</div>
 
       <button id="saveButton" type="button" disabled>Simpan ke Google Sheets</button>
-      <button id="clearButton" type="button">Hapus Hasil</button>
+      <button id="clearButton" type="button">Hapus Hasil & Data di Google Sheets</button>
     </section>
 
     <section class="result-card">
@@ -469,6 +469,17 @@
       }
     }
 
+    async function sendToGoogleSheets(payload) {
+      return fetch(GOOGLE_SHEETS_API, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(payload)
+      });
+    }
+
     async function saveToGoogleSheets() {
       if (isSaving) {
         return;
@@ -510,14 +521,7 @@
          * mode no-cors diperlukan karena Apps Script ContentService
          * tidak memberikan response CORS yang dapat dibaca frontend.
          */
-        await fetch(GOOGLE_SHEETS_API, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify(payload)
-        });
+        await sendToGoogleSheets(payload);
 
         setStatus(
           "Data dikirim: " +
@@ -542,24 +546,79 @@
       }
     }
 
-    function clearScanData() {
+    async function clearScanData() {
       if (isSaving) {
         return;
       }
 
-      lastScanValues = [];
-      lastScanRawText = "";
-      currentBoxName = "";
+      if (lastScanValues.length === 0) {
+        setStatus("Belum ada hasil scan untuk dihapus.", "warning");
+        return;
+      }
 
-      resultElement.textContent = "Belum ada hasil scan.";
-      boxNameElement.disabled = false;
-      updateControls();
+      const boxName = currentBoxName.trim() || boxNameElement.value.trim();
 
-      setStatus(
-        scannerRunning
-          ? "Scanner aktif."
-          : "Hasil scan telah dihapus. Masukkan nama box untuk scan berikutnya."
+      if (!boxName) {
+        setStatus("Nama box tidak ditemukan.", "warning");
+        return;
+      }
+
+      if (!navigator.onLine) {
+        setStatus("Perangkat sedang offline. Periksa koneksi internet.", "error");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Hapus " +
+        lastScanValues.length +
+        " data hasil scan dari Google Sheets untuk Box " +
+        boxName +
+        "?\n\nData yang cocok akan dihapus dari Sheet1."
       );
+
+      if (!confirmed) {
+        return;
+      }
+
+      isSaving = true;
+      updateControls();
+      clearButton.textContent = "Menghapus...";
+
+      try {
+        const payload = {
+          action: "delete",
+          items: [...lastScanValues],
+          boxName: boxName
+        };
+
+        await sendToGoogleSheets(payload);
+
+        lastScanValues = [];
+        lastScanRawText = "";
+        currentBoxName = "";
+
+        resultElement.textContent = "Belum ada hasil scan.";
+        boxNameElement.disabled = false;
+
+        setStatus(
+          "Permintaan penghapusan dikirim untuk " +
+          boxName +
+          ". Periksa Sheet1 untuk memastikan data terhapus.",
+          "success"
+        );
+      } catch (error) {
+        console.error("Gagal menghapus data:", error);
+
+        setStatus(
+          "Penghapusan gagal: " +
+          (error.message || "periksa koneksi internet."),
+          "error"
+        );
+      } finally {
+        isSaving = false;
+        clearButton.textContent = "Hapus Hasil & Data di Google Sheets";
+        updateControls();
+      }
     }
 
     boxNameElement.addEventListener("input", () => {
