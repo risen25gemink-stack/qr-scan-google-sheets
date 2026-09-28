@@ -48,6 +48,10 @@
       text-align: center;
     }
 
+    .status.success { background: #eaf8ef; color: #176b35; }
+    .status.error { background: #fff0f0; color: #b42318; }
+    .status.warning { background: #fff8e6; color: #8a5a00; }
+
     .label {
       display: block;
       margin-bottom: 7px;
@@ -68,6 +72,12 @@
       white-space: pre-wrap;
     }
 
+    .counter {
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
     button {
       width: 100%;
       border: 0;
@@ -77,6 +87,11 @@
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
 
     #startButton { background: #1565c0; color: white; }
@@ -108,7 +123,7 @@
 <body>
   <main class="app">
     <h1>QR & Barcode Scanner</h1>
-    <p class="subtitle">Scan kode menggunakan kamera HP.</p>
+    <p class="subtitle">Scan kode menggunakan kamera HP dan simpan hasilnya ke Google Sheets.</p>
 
     <section class="scanner-card">
       <div id="reader"></div>
@@ -119,6 +134,8 @@
     <section class="result-card">
       <span class="label">Hasil scan terakhir</span>
       <div id="scanResult">Belum ada hasil scan.</div>
+      <div id="counter" class="counter">0 item siap disimpan.</div>
+
       <button id="saveButton" type="button" disabled>Simpan ke Google Sheets</button>
       <button id="clearButton" type="button">Hapus Hasil</button>
     </section>
@@ -132,25 +149,67 @@
   </main>
 
   <script>
+    /*
+     * Endpoint Web App Apps Script yang digunakan untuk menyimpan
+     * data ke Spreadsheet ID:
+     * 1gv2WZ9ij747S8uVzAC_e-hxdplh_loms9CJElRyco1Q
+     */
+    const GOOGLE_SHEETS_API =
+      "https://script.google.com/macros/s/AKfycbyzOr_WY47ntm6lchfMI3bRC2PAkPu8c7WZiWk2dO30M__VsN8X5zrAzsbHvcpF41_m/exec";
+
     const statusElement = document.getElementById("status");
     const resultElement = document.getElementById("scanResult");
+    const counterElement = document.getElementById("counter");
     const historyElement = document.getElementById("history");
     const startButton = document.getElementById("startButton");
     const clearButton = document.getElementById("clearButton");
     const saveButton = document.getElementById("saveButton");
 
-    const GOOGLE_SHEETS_API =
-      "https://script.google.com/macros/s/AKfycbwhgS3spwXvtXrHD2viEOJWgFOyP5qQNOdwuQfTTB-apdrhMRJv3NnxUp-tlk2-O1kq/exec";
-
     let lastScanValues = [];
+    let lastScanRawText = "";
+    let batchId = "";
     let isSaving = false;
 
     let scanner = null;
     let scannerRunning = false;
+    let scannerPaused = false;
+
     let history = [];
 
-    function setStatus(message) {
+    function setStatus(message, type = "") {
       statusElement.textContent = message;
+      statusElement.className = "status" + (type ? " " + type : "");
+    }
+
+    function updateControls() {
+      const hasData = lastScanValues.length > 0;
+
+      saveButton.disabled = !hasData || isSaving;
+      clearButton.disabled = !hasData || isSaving;
+
+      counterElement.textContent =
+        lastScanValues.length === 0
+          ? "0 item siap disimpan."
+          : lastScanValues.length + " item siap disimpan.";
+    }
+
+    function createBatchId() {
+      const now = new Date();
+      const timestamp =
+        now.getFullYear().toString() +
+        String(now.getMonth() + 1).padStart(2, "0") +
+        String(now.getDate()).padStart(2, "0") +
+        "-" +
+        String(now.getHours()).padStart(2, "0") +
+        String(now.getMinutes()).padStart(2, "0") +
+        String(now.getSeconds()).padStart(2, "0");
+
+      const random = Math.random()
+        .toString(36)
+        .slice(2, 7)
+        .toUpperCase();
+
+      return "BATCH-" + timestamp + "-" + random;
     }
 
     function splitScannedData(decodedText) {
@@ -158,33 +217,6 @@
         .split(/\r?\n/)
         .map(value => value.trim())
         .filter(Boolean);
-    }
-
-    function addHistory(values) {
-      const now = new Date().toLocaleString("id-ID");
-
-      values.forEach(value => {
-        history.unshift({
-          value,
-          time: now
-        });
-      });
-
-      renderHistory();
-    }
-
-    function renderHistory() {
-      if (history.length === 0) {
-        historyElement.innerHTML = '<div class="history-item">Belum ada data.</div>';
-        return;
-      }
-
-      historyElement.innerHTML = history.map((item, index) => `
-        <div class="history-item">
-          <strong>${index + 1}. ${escapeHtml(item.value)}</strong>
-          <span class="history-time">${escapeHtml(item.time)}</span>
-        </div>
-      `).join("");
     }
 
     function escapeHtml(value) {
@@ -196,64 +228,75 @@
         .replaceAll("'", "&#039;");
     }
 
-    function onScanSuccess(decodedText) {
+    function addHistory(values) {
+      const time = new Date().toLocaleString("id-ID");
+
+      values.forEach(value => {
+        history.unshift({ value, time });
+      });
+
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (history.length === 0) {
+        historyElement.innerHTML =
+          '<div class="history-item">Belum ada data.</div>';
+        return;
+      }
+
+      historyElement.innerHTML = history.map((item, index) => {
+        return (
+          '<div class="history-item">' +
+            "<strong>" +
+            (index + 1) +
+            ". " +
+            escapeHtml(item.value) +
+            "</strong>" +
+            '<span class="history-time">' +
+            escapeHtml(item.time) +
+            "</span>" +
+          "</div>"
+        );
+      }).join("");
+    }
+
+    async function onScanSuccess(decodedText) {
       const values = splitScannedData(decodedText);
 
       if (values.length === 0) {
-        setStatus("Kode terbaca, tetapi tidak ada data.");
+        setStatus("Kode terbaca, tetapi tidak berisi data.", "warning");
         return;
       }
 
+      /*
+       * html5-qrcode dapat memanggil callback beberapa kali untuk
+       * kode yang sama. Jangan membuat data yang sama berulang kali.
+       */
+      if (String(decodedText) === lastScanRawText) {
+        return;
+      }
+
+      lastScanRawText = String(decodedText);
       lastScanValues = values;
+      batchId = createBatchId();
+
       resultElement.textContent = values.join("\n");
       addHistory(values);
-      saveButton.disabled = false;
-      setStatus(`Scan berhasil: ${values.length} data ditemukan.`);
+      updateControls();
 
-      if (scanner && scannerRunning) {
-        scanner.pause(true);
-        scannerRunning = false;
-        startButton.textContent = "Scan Lagi";
-      }
-    }
+      setStatus(
+        "Scan berhasil: " +
+        values.length +
+        " item. Scanner dijeda dan data siap disimpan.",
+        "success"
+      );
 
-    async function saveToGoogleSheets() {
-      if (lastScanValues.length === 0 || isSaving) {
-        setStatus("Belum ada hasil scan untuk disimpan.");
-        return;
-      }
-
-      isSaving = true;
-      saveButton.disabled = true;
-      saveButton.textContent = "Menyimpan...";
-
-      try {
-        await fetch(GOOGLE_SHEETS_API, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify({
-            items: lastScanValues
-          })
-        });
-
-        setStatus(
-          `Permintaan simpan dikirim: ${lastScanValues.length} item. Cek Google Sheets.`
-        );
-      } catch (error) {
-        console.error(error);
-        saveButton.disabled = false;
-        setStatus("Pengiriman gagal. Periksa koneksi internet.");
-      } finally {
-        isSaving = false;
-        saveButton.textContent = "Simpan ke Google Sheets";
-      }
+      await pauseScanner();
     }
 
     function onScanFailure() {
-      // Gagal membaca satu frame adalah kondisi normal saat kamera aktif.
+      // Frame tanpa kode yang terbaca adalah kondisi normal.
     }
 
     async function startScanner() {
@@ -291,30 +334,179 @@
         );
 
         scannerRunning = true;
+        scannerPaused = false;
         startButton.textContent = "Scanner Aktif";
-        setStatus("Arahkan kamera ke QR atau barcode.");
+        setStatus("Scanner aktif. Arahkan kamera ke QR atau barcode.");
       } catch (error) {
-        console.error(error);
+        console.error("Gagal memulai scanner:", error);
+
         scannerRunning = false;
-        setStatus("Kamera tidak dapat dimulai. Pastikan izin kamera diberikan dan halaman dibuka melalui HTTPS.");
+        scannerPaused = false;
+        startButton.textContent = "Mulai Scanner";
+
+        setStatus(
+          "Kamera tidak dapat dimulai. Pastikan izin kamera diberikan dan halaman menggunakan HTTPS.",
+          "error"
+        );
       }
+    }
+
+    async function pauseScanner() {
+      if (!scanner || !scannerRunning || scannerPaused) {
+        return;
+      }
+
+      try {
+        scanner.pause(true);
+        scannerPaused = true;
+        scannerRunning = false;
+        startButton.textContent = "Scan Lagi";
+      } catch (error) {
+        console.warn("Gagal menjeda scanner:", error);
+      }
+    }
+
+    async function resumeScanner() {
+      if (!scanner || !scannerPaused) {
+        await startScanner();
+        return;
+      }
+
+      try {
+        scanner.resume();
+        scannerPaused = false;
+        scannerRunning = true;
+        lastScanRawText = "";
+        startButton.textContent = "Scanner Aktif";
+
+        setStatus("Scanner aktif kembali. Arahkan kamera ke kode.");
+      } catch (error) {
+        console.error("Gagal melanjutkan scanner:", error);
+        setStatus("Scanner gagal dilanjutkan.", "error");
+      }
+    }
+
+    async function saveToGoogleSheets() {
+      if (isSaving) {
+        return;
+      }
+
+      if (lastScanValues.length === 0) {
+        setStatus("Belum ada hasil scan untuk disimpan.", "warning");
+        return;
+      }
+
+      if (!navigator.onLine) {
+        setStatus(
+          "Perangkat sedang offline. Periksa koneksi internet.",
+          "error"
+        );
+        return;
+      }
+
+      isSaving = true;
+      updateControls();
+      saveButton.textContent = "Mengirim...";
+
+      if (!batchId) {
+        batchId = createBatchId();
+      }
+
+      /*
+       * Payload ini sama dengan yang diharapkan doPost(e):
+       * {
+       *   items: [...],
+       *   batchId: "BATCH-..."
+       * }
+       */
+      const payload = {
+        items: [...lastScanValues],
+        batchId: batchId
+      };
+
+      try {
+        /*
+         * text/plain menghindari preflight CORS.
+         * mode no-cors diperlukan karena Apps Script ContentService
+         * tidak memberikan response CORS yang dapat dibaca frontend.
+         *
+         * Karena response bersifat opaque, browser tidak dapat
+         * memastikan hasil internal doPost(). Jika Apps Script
+         * menerima request tetapi gagal menulis Sheet, frontend
+         * tidak dapat membaca pesan error tersebut.
+         */
+        await fetch(GOOGLE_SHEETS_API, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        setStatus(
+          "Data dikirim ke Google Sheets: " +
+          lastScanValues.length +
+          " item. Batch " +
+          batchId +
+          ". Periksa Sheet1 untuk memastikan data masuk.",
+          "success"
+        );
+
+        /*
+         * Jangan menghapus hasil scan setelah request.
+         * Jika Apps Script ternyata gagal menyimpan, data masih
+         * tersedia sehingga pengguna dapat mencoba mengirim ulang.
+         */
+      } catch (error) {
+        console.error("Gagal mengirim data:", error);
+
+        setStatus(
+          "Pengiriman gagal: " +
+          (error.message || "periksa koneksi internet."),
+          "error"
+        );
+      } finally {
+        isSaving = false;
+        saveButton.textContent = "Simpan ke Google Sheets";
+        updateControls();
+      }
+    }
+
+    function clearScanData() {
+      if (isSaving) {
+        return;
+      }
+
+      lastScanValues = [];
+      lastScanRawText = "";
+      batchId = "";
+
+      resultElement.textContent = "Belum ada hasil scan.";
+      updateControls();
+
+      setStatus(
+        scannerRunning
+          ? "Scanner aktif."
+          : "Hasil scan telah dihapus."
+      );
     }
 
     saveButton.addEventListener("click", saveToGoogleSheets);
 
+    clearButton.addEventListener("click", clearScanData);
+
     startButton.addEventListener("click", async () => {
-      if (!scannerRunning) {
+      if (scannerPaused) {
+        await resumeScanner();
+      } else if (!scannerRunning) {
         await startScanner();
       }
     });
 
-    clearButton.addEventListener("click", () => {
-      resultElement.textContent = "Belum ada hasil scan.";
-      lastScanValues = [];
-      saveButton.disabled = true;
-      history = [];
+    window.addEventListener("load", () => {
+      updateControls();
       renderHistory();
-      setStatus(scannerRunning ? "Scanner aktif." : "Scanner belum dimulai.");
     });
   </script>
 </body>
