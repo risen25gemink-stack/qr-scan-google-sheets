@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1565c0">
+  <title>QR & Barcode Scanner</title>
+
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      color: #1f2937;
+    }
+
+    .app {
+      width: min(100%, 520px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 20px 16px 32px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      margin: 0 0 18px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .scanner-card,
+    .result-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+      margin-bottom: 16px;
+    }
+
+    #reader {
+      width: 100%;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #eef5ff;
+      color: #155eac;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    #scanResult {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px;
+      border: 1px solid #dbe3ef;
+      border-radius: 10px;
+      background: #f8fafc;
+      font-size: 15px;
+      word-break: break-all;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 13px;
+      margin-top: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #startButton {
+      background: #1565c0;
+      color: white;
+    }
+
+    #clearButton {
+      background: #e8eef7;
+      color: #1e3a5f;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .history-title {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    #history {
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-item {
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      font-size: 13px;
+      word-break: break-all;
+    }
+
+    .history-time {
+      display: block;
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 11px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <h1>QR & Barcode Scanner</h1>
+    <p class="subtitle">Scan kode menggunakan kamera HP.</p>
+
+    <section class="scanner-card">
+      <div id="reader"></div>
+      <div id="status" class="status">Scanner belum dimulai.</div>
+      <button id="startButton" type="button">Mulai Scanner</button>
+    </section>
+
+    <section class="result-card">
+      <span class="label">Hasil scan terakhir</span>
+      <div id="scanResult">Belum ada hasil scan.</div>
+      <button id="clearButton" type="button">Hapus Hasil</button>
+    </section>
+
+    <section class="result-card">
+      <h2 class="history-title">Riwayat Scan</h2>
+      <div id="history">
+        <div class="history-item">Belum ada data.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const statusElement = document.getElementById("status");
+    const resultElement = document.getElementById("scanResult");
+    const historyElement = document.getElementById("history");
+    const startButton = document.getElementById("startButton");
+    const clearButton = document.getElementById("clearButton");
+
+    let scanner = null;
+    let scannerRunning = false;
+    let history = [];
+
+    function setStatus(message) {
+      statusElement.textContent = message;
+    }
+
+    function addHistory(decodedText) {
+      history.unshift({
+        value: decodedText,
+        time: new Date().toLocaleString("id-ID")
+      });
+
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (history.length === 0) {
+        historyElement.innerHTML = '<div class="history-item">Belum ada data.</div>';
+        return;
+      }
+
+      historyElement.innerHTML = history.map(item => `
+        <div class="history-item">
+          <strong>${escapeHtml(item.value)}</strong>
+          <span class="history-time">${escapeHtml(item.time)}</span>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function onScanSuccess(decodedText) {
+      resultElement.textContent = decodedText;
+      addHistory(decodedText);
+      setStatus("Kode berhasil dibaca.");
+
+      if (scanner && scannerRunning) {
+        scanner.pause(true);
+        scannerRunning = false;
+        startButton.textContent = "Scan Lagi";
+      }
+    }
+
+    function onScanFailure() {
+      // Pemindaian gagal pada frame tertentu adalah normal.
+    }
+
+    async function startScanner() {
+      if (scannerRunning) {
+        return;
+      }
+
+      try {
+        if (!scanner) {
+          scanner = new Html5Qrcode("reader");
+        }
+
+        setStatus("Meminta izin kamera...");
+
+        await scanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.CODE_39,
+              Html5QrcodeSupportedFormats.CODE_93,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.UPC_E,
+              Html5QrcodeSupportedFormats.ITF
+            ]
+          },
+          onScanSuccess,
+          onScanFailure
+        );
+
+        scannerRunning = true;
+        startButton.textContent = "Scanner Aktif";
+        setStatus("Arahkan kamera ke QR atau barcode.");
+      } catch (error) {
+        console.error(error);
+        scannerRunning = false;
+        setStatus("Kamera tidak dapat dimulai. Pastikan izin kamera diberikan dan halaman dibuka melalui HTTPS.");
+      }
+    }
+
+    startButton.addEventListener("click", async () => {
+      if (!scannerRunning) {
+        await startScanner();
+      }
+    });
+
+    clearButton.addEventListener("click", () => {
+      resultElement.textContent = "Belum ada hasil scan.";
+      history = [];
+      renderHistory();
+      setStatus(scannerRunning ? "Scanner aktif." : "Scanner belum dimulai.");
+    });
+  </script>
+</body>
+</html>
