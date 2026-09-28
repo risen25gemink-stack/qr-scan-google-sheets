@@ -36,7 +36,7 @@
       margin-bottom: 16px;
     }
 
-    #reader { width: 100%; min-height: 280px; overflow: hidden; border-radius: 12px; background: #0f172a; }\n    #reader video { width: 100% !important; height: auto !important; display: block; }
+    #reader { width: 100%; overflow: hidden; border-radius: 12px; }
 
     .status {
       margin-top: 12px;
@@ -151,7 +151,7 @@
     let scannerRunning = false;
     let history = [];
     let lastScanValues = [];
-    let isSaving = false;\n    let scannerPaused = false;
+    let isSaving = false;
 
     function setStatus(message) {
       statusElement.textContent = message;
