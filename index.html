@@ -9,9 +9,7 @@
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -27,19 +25,10 @@
       padding: 20px 16px 32px;
     }
 
-    h1 {
-      margin: 0 0 6px;
-      font-size: 24px;
-    }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .subtitle { margin: 0 0 18px; color: #64748b; font-size: 14px; }
 
-    .subtitle {
-      margin: 0 0 18px;
-      color: #64748b;
-      font-size: 14px;
-    }
-
-    .scanner-card,
-    .result-card {
+    .scanner-card, .result-card {
       background: #fff;
       border-radius: 16px;
       padding: 14px;
@@ -47,11 +36,7 @@
       margin-bottom: 16px;
     }
 
-    #reader {
-      width: 100%;
-      overflow: hidden;
-      border-radius: 12px;
-    }
+    #reader { width: 100%; overflow: hidden; border-radius: 12px; }
 
     .status {
       margin-top: 12px;
@@ -80,6 +65,7 @@
       background: #f8fafc;
       font-size: 15px;
       word-break: break-all;
+      white-space: pre-wrap;
     }
 
     button {
@@ -93,30 +79,12 @@
       cursor: pointer;
     }
 
-    #startButton {
-      background: #1565c0;
-      color: white;
-    }
+    #startButton { background: #1565c0; color: white; }
+    #clearButton { background: #e8eef7; color: #1e3a5f; }
 
-    #clearButton {
-      background: #e8eef7;
-      color: #1e3a5f;
-    }
+    .history-title { margin: 0 0 10px; font-size: 17px; }
 
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
-    .history-title {
-      margin: 0 0 10px;
-      font-size: 17px;
-    }
-
-    #history {
-      display: grid;
-      gap: 8px;
-    }
+    #history { display: grid; gap: 8px; }
 
     .history-item {
       padding: 10px;
@@ -176,10 +144,21 @@
       statusElement.textContent = message;
     }
 
-    function addHistory(decodedText) {
-      history.unshift({
-        value: decodedText,
-        time: new Date().toLocaleString("id-ID")
+    function splitScannedData(decodedText) {
+      return String(decodedText)
+        .split(/\r?\n/)
+        .map(value => value.trim())
+        .filter(Boolean);
+    }
+
+    function addHistory(values) {
+      const now = new Date().toLocaleString("id-ID");
+
+      values.forEach(value => {
+        history.unshift({
+          value,
+          time: now
+        });
       });
 
       renderHistory();
@@ -191,9 +170,9 @@
         return;
       }
 
-      historyElement.innerHTML = history.map(item => `
+      historyElement.innerHTML = history.map((item, index) => `
         <div class="history-item">
-          <strong>${escapeHtml(item.value)}</strong>
+          <strong>${index + 1}. ${escapeHtml(item.value)}</strong>
           <span class="history-time">${escapeHtml(item.time)}</span>
         </div>
       `).join("");
@@ -209,9 +188,16 @@
     }
 
     function onScanSuccess(decodedText) {
-      resultElement.textContent = decodedText;
-      addHistory(decodedText);
-      setStatus("Kode berhasil dibaca.");
+      const values = splitScannedData(decodedText);
+
+      if (values.length === 0) {
+        setStatus("Kode terbaca, tetapi tidak ada data.");
+        return;
+      }
+
+      resultElement.textContent = values.join("\n");
+      addHistory(values);
+      setStatus(`Scan berhasil: ${values.length} data ditemukan.`);
 
       if (scanner && scannerRunning) {
         scanner.pause(true);
@@ -221,7 +207,7 @@
     }
 
     function onScanFailure() {
-      // Pemindaian gagal pada frame tertentu adalah normal.
+      // Gagal membaca satu frame adalah kondisi normal saat kamera aktif.
     }
 
     async function startScanner() {
@@ -240,9 +226,10 @@
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
+            qrbox: { width: 280, height: 180 },
             formatsToSupport: [
               Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.PDF_417,
               Html5QrcodeSupportedFormats.CODE_128,
               Html5QrcodeSupportedFormats.CODE_39,
               Html5QrcodeSupportedFormats.CODE_93,
