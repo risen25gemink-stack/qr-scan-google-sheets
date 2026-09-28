@@ -38,6 +38,39 @@
 
     #reader { width: 100%; overflow: hidden; border-radius: 12px; }
 
+    .box-group {
+      margin-bottom: 14px;
+    }
+
+    .box-input {
+      width: 100%;
+      padding: 13px 12px;
+      border: 1px solid #dbe3ef;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #1f2937;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .box-input:focus {
+      border-color: #1565c0;
+      box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12);
+      background: #fff;
+    }
+
+    .box-input:disabled {
+      background: #eef2f7;
+      color: #64748b;
+    }
+
+    .box-help {
+      display: block;
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
     .status {
       margin-top: 12px;
       padding: 10px 12px;
@@ -70,6 +103,16 @@
       font-size: 15px;
       word-break: break-all;
       white-space: pre-wrap;
+    }
+
+    .box-summary {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f1f7ff;
+      color: #155eac;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .counter {
@@ -111,6 +154,17 @@
       word-break: break-all;
     }
 
+    .history-box {
+      display: inline-block;
+      margin-bottom: 5px;
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: #e8f1ff;
+      color: #155eac;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
     .history-time {
       display: block;
       margin-top: 4px;
@@ -123,17 +177,31 @@
 <body>
   <main class="app">
     <h1>QR & Barcode Scanner</h1>
-    <p class="subtitle">Scan kode menggunakan kamera HP dan simpan hasilnya ke Google Sheets.</p>
+    <p class="subtitle">Masukkan nama box, scan kode, lalu simpan hasilnya ke Google Sheets.</p>
 
     <section class="scanner-card">
+      <div class="box-group">
+        <label class="label" for="boxName">Nama Box</label>
+        <input
+          id="boxName"
+          class="box-input"
+          type="text"
+          placeholder="Contoh: PB1"
+          autocomplete="off"
+          maxlength="50"
+        >
+        <span class="box-help">Masukkan nama box sebelum mulai scan, misalnya PB1.</span>
+      </div>
+
       <div id="reader"></div>
-      <div id="status" class="status">Scanner belum dimulai.</div>
+      <div id="status" class="status">Masukkan nama box lalu mulai scanner.</div>
       <button id="startButton" type="button">Mulai Scanner</button>
     </section>
 
     <section class="result-card">
       <span class="label">Hasil scan terakhir</span>
       <div id="scanResult">Belum ada hasil scan.</div>
+      <div id="boxSummary" class="box-summary" hidden></div>
       <div id="counter" class="counter">0 item siap disimpan.</div>
 
       <button id="saveButton" type="button" disabled>Simpan ke Google Sheets</button>
@@ -150,15 +218,15 @@
 
   <script>
     /*
-     * Endpoint Web App Apps Script yang digunakan untuk menyimpan
-     * data ke Spreadsheet ID:
-     * 1gv2WZ9ij747S8uVzAC_e-hxdplh_loms9CJElRyco1Q
+     * Endpoint Web App Apps Script.
      */
     const GOOGLE_SHEETS_API =
       "https://script.google.com/macros/s/AKfycbyzOr_WY47ntm6lchfMI3bRC2PAkPu8c7WZiWk2dO30M__VsN8X5zrAzsbHvcpF41_m/exec";
 
     const statusElement = document.getElementById("status");
     const resultElement = document.getElementById("scanResult");
+    const boxNameElement = document.getElementById("boxName");
+    const boxSummaryElement = document.getElementById("boxSummary");
     const counterElement = document.getElementById("counter");
     const historyElement = document.getElementById("history");
     const startButton = document.getElementById("startButton");
@@ -167,7 +235,7 @@
 
     let lastScanValues = [];
     let lastScanRawText = "";
-    let batchId = "";
+    let currentBoxName = "";
     let isSaving = false;
 
     let scanner = null;
@@ -183,33 +251,23 @@
 
     function updateControls() {
       const hasData = lastScanValues.length > 0;
+      const hasBox = currentBoxName.trim() !== "";
 
-      saveButton.disabled = !hasData || isSaving;
+      saveButton.disabled = !hasData || !hasBox || isSaving;
       clearButton.disabled = !hasData || isSaving;
 
       counterElement.textContent =
         lastScanValues.length === 0
           ? "0 item siap disimpan."
           : lastScanValues.length + " item siap disimpan.";
-    }
 
-    function createBatchId() {
-      const now = new Date();
-      const timestamp =
-        now.getFullYear().toString() +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        String(now.getDate()).padStart(2, "0") +
-        "-" +
-        String(now.getHours()).padStart(2, "0") +
-        String(now.getMinutes()).padStart(2, "0") +
-        String(now.getSeconds()).padStart(2, "0");
-
-      const random = Math.random()
-        .toString(36)
-        .slice(2, 7)
-        .toUpperCase();
-
-      return "BATCH-" + timestamp + "-" + random;
+      if (hasData && hasBox) {
+        boxSummaryElement.hidden = false;
+        boxSummaryElement.textContent = "Box: " + currentBoxName;
+      } else {
+        boxSummaryElement.hidden = true;
+        boxSummaryElement.textContent = "";
+      }
     }
 
     function splitScannedData(decodedText) {
@@ -228,11 +286,11 @@
         .replaceAll("'", "&#039;");
     }
 
-    function addHistory(values) {
+    function addHistory(values, boxName) {
       const time = new Date().toLocaleString("id-ID");
 
       values.forEach(value => {
-        history.unshift({ value, time });
+        history.unshift({ value, boxName, time });
       });
 
       renderHistory();
@@ -248,6 +306,10 @@
       historyElement.innerHTML = history.map((item, index) => {
         return (
           '<div class="history-item">' +
+            '<span class="history-box">Box: ' +
+            escapeHtml(item.boxName) +
+            "</span>" +
+            "<br>" +
             "<strong>" +
             (index + 1) +
             ". " +
@@ -269,26 +331,37 @@
         return;
       }
 
-      /*
-       * html5-qrcode dapat memanggil callback beberapa kali untuk
-       * kode yang sama. Jangan membuat data yang sama berulang kali.
-       */
       if (String(decodedText) === lastScanRawText) {
         return;
       }
 
+      const boxName = boxNameElement.value.trim();
+
+      if (!boxName) {
+        setStatus("Masukkan nama box terlebih dahulu, misalnya PB1.", "warning");
+        return;
+      }
+
       lastScanRawText = String(decodedText);
+      currentBoxName = boxName;
       lastScanValues = values;
-      batchId = createBatchId();
 
       resultElement.textContent = values.join("\n");
-      addHistory(values);
+      addHistory(values, currentBoxName);
       updateControls();
+
+      /*
+       * Kunci nama box selama hasil scan masih aktif supaya
+       * data tidak tersimpan ke box yang berbeda dari saat scan.
+       */
+      boxNameElement.disabled = true;
 
       setStatus(
         "Scan berhasil: " +
         values.length +
-        " item. Scanner dijeda dan data siap disimpan.",
+        " item. Box " +
+        currentBoxName +
+        ". Scanner dijeda.",
         "success"
       );
 
@@ -300,6 +373,16 @@
     }
 
     async function startScanner() {
+      const boxName = boxNameElement.value.trim();
+
+      if (!boxName) {
+        boxNameElement.focus();
+        setStatus("Masukkan nama box terlebih dahulu, misalnya PB1.", "warning");
+        return;
+      }
+
+      currentBoxName = boxName;
+
       if (scannerRunning) {
         return;
       }
@@ -336,7 +419,7 @@
         scannerRunning = true;
         scannerPaused = false;
         startButton.textContent = "Scanner Aktif";
-        setStatus("Scanner aktif. Arahkan kamera ke QR atau barcode.");
+        setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
       } catch (error) {
         console.error("Gagal memulai scanner:", error);
 
@@ -379,7 +462,7 @@
         lastScanRawText = "";
         startButton.textContent = "Scanner Aktif";
 
-        setStatus("Scanner aktif kembali. Arahkan kamera ke kode.");
+        setStatus("Scanner aktif kembali untuk Box " + currentBoxName + ".");
       } catch (error) {
         console.error("Gagal melanjutkan scanner:", error);
         setStatus("Scanner gagal dilanjutkan.", "error");
@@ -396,6 +479,13 @@
         return;
       }
 
+      const boxName = boxNameElement.value.trim() || currentBoxName.trim();
+
+      if (!boxName) {
+        setStatus("Nama box belum diisi.", "warning");
+        return;
+      }
+
       if (!navigator.onLine) {
         setStatus(
           "Perangkat sedang offline. Periksa koneksi internet.",
@@ -404,24 +494,14 @@
         return;
       }
 
+      currentBoxName = boxName;
       isSaving = true;
       updateControls();
       saveButton.textContent = "Mengirim...";
 
-      if (!batchId) {
-        batchId = createBatchId();
-      }
-
-      /*
-       * Payload ini sama dengan yang diharapkan doPost(e):
-       * {
-       *   items: [...],
-       *   batchId: "BATCH-..."
-       * }
-       */
       const payload = {
         items: [...lastScanValues],
-        batchId: batchId
+        boxName: currentBoxName
       };
 
       try {
@@ -429,11 +509,6 @@
          * text/plain menghindari preflight CORS.
          * mode no-cors diperlukan karena Apps Script ContentService
          * tidak memberikan response CORS yang dapat dibaca frontend.
-         *
-         * Karena response bersifat opaque, browser tidak dapat
-         * memastikan hasil internal doPost(). Jika Apps Script
-         * menerima request tetapi gagal menulis Sheet, frontend
-         * tidak dapat membaca pesan error tersebut.
          */
         await fetch(GOOGLE_SHEETS_API, {
           method: "POST",
@@ -445,19 +520,13 @@
         });
 
         setStatus(
-          "Data dikirim ke Google Sheets: " +
+          "Data dikirim: " +
           lastScanValues.length +
-          " item. Batch " +
-          batchId +
-          ". Periksa Sheet1 untuk memastikan data masuk.",
+          " item ke Box " +
+          currentBoxName +
+          ". Periksa Sheet1.",
           "success"
         );
-
-        /*
-         * Jangan menghapus hasil scan setelah request.
-         * Jika Apps Script ternyata gagal menyimpan, data masih
-         * tersedia sehingga pengguna dapat mencoba mengirim ulang.
-         */
       } catch (error) {
         console.error("Gagal mengirim data:", error);
 
@@ -480,20 +549,27 @@
 
       lastScanValues = [];
       lastScanRawText = "";
-      batchId = "";
+      currentBoxName = "";
 
       resultElement.textContent = "Belum ada hasil scan.";
+      boxNameElement.disabled = false;
       updateControls();
 
       setStatus(
         scannerRunning
           ? "Scanner aktif."
-          : "Hasil scan telah dihapus."
+          : "Hasil scan telah dihapus. Masukkan nama box untuk scan berikutnya."
       );
     }
 
-    saveButton.addEventListener("click", saveToGoogleSheets);
+    boxNameElement.addEventListener("input", () => {
+      if (!lastScanValues.length) {
+        currentBoxName = boxNameElement.value.trim();
+      }
+      updateControls();
+    });
 
+    saveButton.addEventListener("click", saveToGoogleSheets);
     clearButton.addEventListener("click", clearScanData);
 
     startButton.addEventListener("click", async () => {
