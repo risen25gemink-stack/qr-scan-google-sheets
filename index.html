@@ -143,7 +143,62 @@
 
     .history-title { margin: 0 0 10px; font-size: 17px; }
 
-    #history { display: grid; gap: 8px; }
+    #history, #trackingList { display: grid; gap: 8px; }
+
+    .tracking-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .tracking-title {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    #refreshTrackingButton {
+      width: auto;
+      margin: 0;
+      padding: 8px 11px;
+      background: #e8eef7;
+      color: #1e3a5f;
+      font-size: 12px;
+    }
+
+    .tracking-summary {
+      margin-bottom: 10px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .tracking-item {
+      padding: 10px;
+      border: 1px solid #dbe3ef;
+      border-radius: 10px;
+      background: #f8fafc;
+      font-size: 13px;
+      word-break: break-all;
+    }
+
+    .tracking-badge {
+      display: inline-block;
+      margin-bottom: 5px;
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: #eaf8ef;
+      color: #176b35;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tracking-time {
+      display: block;
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 11px;
+    }
 
     .history-item {
       padding: 10px;
@@ -209,6 +264,19 @@
     </section>
 
     <section class="result-card">
+      <div class="tracking-head">
+        <h2 class="tracking-title">Tracking Google Sheets</h2>
+        <button id="refreshTrackingButton" type="button">Refresh</button>
+      </div>
+      <div id="trackingSummary" class="tracking-summary">
+        Masukkan nama box untuk melihat data yang sudah tersimpan.
+      </div>
+      <div id="trackingList">
+        <div class="tracking-item">Belum ada tracking.</div>
+      </div>
+    </section>
+
+    <section class="result-card">
       <h2 class="history-title">Riwayat Scan</h2>
       <div id="history">
         <div class="history-item">Belum ada data.</div>
@@ -232,6 +300,9 @@
     const startButton = document.getElementById("startButton");
     const clearButton = document.getElementById("clearButton");
     const saveButton = document.getElementById("saveButton");
+    const refreshTrackingButton = document.getElementById("refreshTrackingButton");
+    const trackingSummaryElement = document.getElementById("trackingSummary");
+    const trackingListElement = document.getElementById("trackingList");
 
     let lastScanValues = [];
     let lastScanRawText = "";
@@ -243,6 +314,7 @@
     let scannerPaused = false;
 
     let history = [];
+    let trackingRequestId = 0;
 
     function setStatus(message, type = "") {
       statusElement.textContent = message;
@@ -321,6 +393,106 @@
           "</div>"
         );
       }).join("");
+    }
+
+
+    function renderTracking(records, boxName) {
+      if (!records || records.length === 0) {
+        trackingSummaryElement.textContent =
+          boxName
+            ? "Belum ada data tersimpan untuk Box " + boxName + "."
+            : "Masukkan nama box untuk melihat data yang sudah tersimpan.";
+        trackingListElement.innerHTML =
+          '<div class="tracking-item">Belum ada data tersimpan.</div>';
+        return;
+      }
+
+      trackingSummaryElement.textContent =
+        records.length +
+        " data tersimpan di Google Sheets untuk Box " +
+        boxName +
+        ".";
+
+      trackingListElement.innerHTML = records.map((item, index) => {
+        return (
+          '<div class="tracking-item">' +
+            '<span class="tracking-badge">Tersimpan di Google Sheets</span>' +
+            "<br>" +
+            "<strong>" +
+            (index + 1) +
+            ". " +
+            escapeHtml(item.barcode) +
+            "</strong>" +
+            '<span class="tracking-time">' +
+            escapeHtml(item.time) +
+            "</span>" +
+          "</div>"
+        );
+      }).join("");
+    }
+
+    function loadTracking() {
+      const boxName = boxNameElement.value.trim();
+
+      if (!boxName) {
+        trackingSummaryElement.textContent =
+          "Masukkan nama box untuk melihat data yang sudah tersimpan.";
+        trackingListElement.innerHTML =
+          '<div class="tracking-item">Nama box belum diisi.</div>';
+        return;
+      }
+
+      const requestId = ++trackingRequestId;
+      trackingSummaryElement.textContent =
+        "Mengambil data Box " + boxName + " dari Google Sheets...";
+      trackingListElement.innerHTML =
+        '<div class="tracking-item">Memuat tracking...</div>';
+
+      const callbackName = "__qrTracking_" + Date.now() + "_" + requestId;
+
+      window[callbackName] = function(response) {
+        try {
+          if (requestId !== trackingRequestId) {
+            return;
+          }
+
+          if (!response || response.success !== true) {
+            renderTracking([], boxName);
+            trackingSummaryElement.textContent =
+              (response && response.message) ||
+              "Tracking tidak dapat dimuat.";
+            return;
+          }
+
+          renderTracking(response.records || [], boxName);
+        } finally {
+          delete window[callbackName];
+          if (script && script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        }
+      };
+
+      const script = document.createElement("script");
+      script.src =
+        GOOGLE_SHEETS_API +
+        "?action=tracking&boxName=" +
+        encodeURIComponent(boxName) +
+        "&callback=" +
+        encodeURIComponent(callbackName);
+
+      script.onerror = function() {
+        delete window[callbackName];
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+        trackingSummaryElement.textContent =
+          "Tracking gagal dimuat. Periksa deployment Apps Script.";
+        trackingListElement.innerHTML =
+          '<div class="tracking-item">Gagal mengambil data dari Google Sheets.</div>';
+      };
+
+      document.body.appendChild(script);
     }
 
     async function onScanSuccess(decodedText) {
@@ -528,9 +700,11 @@
           lastScanValues.length +
           " item ke Box " +
           currentBoxName +
-          ". Periksa Sheet1.",
+          ".",
           "success"
         );
+
+        setTimeout(loadTracking, 800);
       } catch (error) {
         console.error("Gagal mengirim data:", error);
 
@@ -603,9 +777,11 @@
         setStatus(
           "Permintaan penghapusan dikirim untuk " +
           boxName +
-          ". Periksa Sheet1 untuk memastikan data terhapus.",
+          ".",
           "success"
         );
+
+        setTimeout(loadTracking, 800);
       } catch (error) {
         console.error("Gagal menghapus data:", error);
 
@@ -626,10 +802,16 @@
         currentBoxName = boxNameElement.value.trim();
       }
       updateControls();
+
+      if (boxNameElement.value.trim()) {
+        clearTimeout(window.__trackingTimer);
+        window.__trackingTimer = setTimeout(loadTracking, 500);
+      }
     });
 
     saveButton.addEventListener("click", saveToGoogleSheets);
     clearButton.addEventListener("click", clearScanData);
+    refreshTrackingButton.addEventListener("click", loadTracking);
 
     startButton.addEventListener("click", async () => {
       if (scannerPaused) {
@@ -642,6 +824,7 @@
     window.addEventListener("load", () => {
       updateControls();
       renderHistory();
+      loadTracking();
     });
   </script>
 </body>
