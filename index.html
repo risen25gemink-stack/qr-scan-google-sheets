@@ -79,13 +79,7 @@
       cursor: pointer;
     }
 
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
     #startButton { background: #1565c0; color: white; }
-    #saveButton { background: #16803c; color: white; }
     #clearButton { background: #e8eef7; color: #1e3a5f; }
 
     .history-title { margin: 0 0 10px; font-size: 17px; }
@@ -124,7 +118,6 @@
     <section class="result-card">
       <span class="label">Hasil scan terakhir</span>
       <div id="scanResult">Belum ada hasil scan.</div>
-      <button id="saveButton" type="button" disabled>Simpan ke Google Sheets</button>
       <button id="clearButton" type="button">Hapus Hasil</button>
     </section>
 
@@ -137,21 +130,15 @@
   </main>
 
   <script>
-    const GOOGLE_SHEETS_API =
-      "https://script.google.com/macros/s/AKfycbyXxXcEbeefo7Cbwe_Ihrp1N01mKgd1mhhiVbXSEEBPFR3_Aq_NQS7Jt0_JVUoTHP79/exec";
-
     const statusElement = document.getElementById("status");
     const resultElement = document.getElementById("scanResult");
     const historyElement = document.getElementById("history");
     const startButton = document.getElementById("startButton");
-    const saveButton = document.getElementById("saveButton");
     const clearButton = document.getElementById("clearButton");
 
     let scanner = null;
     let scannerRunning = false;
     let history = [];
-    let lastScanValues = [];
-    let isSaving = false;
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -168,7 +155,10 @@
       const now = new Date().toLocaleString("id-ID");
 
       values.forEach(value => {
-        history.unshift({ value, time: now });
+        history.unshift({
+          value,
+          time: now
+        });
       });
 
       renderHistory();
@@ -205,11 +195,9 @@
         return;
       }
 
-      lastScanValues = values;
       resultElement.textContent = values.join("\n");
       addHistory(values);
-      saveButton.disabled = false;
-      setStatus(`Scan berhasil: ${values.length} data ditemukan. Siap disimpan.`);
+      setStatus(`Scan berhasil: ${values.length} data ditemukan.`);
 
       if (scanner && scannerRunning) {
         scanner.pause(true);
@@ -218,44 +206,14 @@
       }
     }
 
-    async function saveToGoogleSheets() {
-      if (lastScanValues.length === 0 || isSaving) return;
-
-      isSaving = true;
-      saveButton.disabled = true;
-      saveButton.textContent = "Menyimpan...";
-
-      try {
-        await fetch(GOOGLE_SHEETS_API, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify({
-            items: lastScanValues
-          })
-        });
-
-        setStatus(
-          `Data dikirim ke Google Sheets: ${lastScanValues.length} item. Silakan cek Sheet.`
-        );
-      } catch (error) {
-        console.error(error);
-        saveButton.disabled = false;
-        setStatus("Gagal mengirim data ke Google Sheets. Periksa koneksi internet.");
-      } finally {
-        isSaving = false;
-        saveButton.textContent = "Simpan ke Google Sheets";
-      }
-    }
-
     function onScanFailure() {
       // Gagal membaca satu frame adalah kondisi normal saat kamera aktif.
     }
 
     async function startScanner() {
-      if (scannerRunning) return;
+      if (scannerRunning) {
+        return;
+      }
 
       try {
         if (!scanner) {
@@ -297,15 +255,13 @@
     }
 
     startButton.addEventListener("click", async () => {
-      if (!scannerRunning) await startScanner();
+      if (!scannerRunning) {
+        await startScanner();
+      }
     });
-
-    saveButton.addEventListener("click", saveToGoogleSheets);
 
     clearButton.addEventListener("click", () => {
       resultElement.textContent = "Belum ada hasil scan.";
-      lastScanValues = [];
-      saveButton.disabled = true;
       history = [];
       renderHistory();
       setStatus(scannerRunning ? "Scanner aktif." : "Scanner belum dimulai.");
