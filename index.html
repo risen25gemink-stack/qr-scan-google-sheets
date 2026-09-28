@@ -80,7 +80,7 @@
     }
 
     #startButton { background: #1565c0; color: white; }
-    #clearButton { background: #e8eef7; color: #1e3a5f; }
+    #saveButton { background: #16803c; color: white; }\n    #clearButton { background: #e8eef7; color: #1e3a5f; }
 
     .history-title { margin: 0 0 10px; font-size: 17px; }
 
@@ -134,7 +134,7 @@
     const resultElement = document.getElementById("scanResult");
     const historyElement = document.getElementById("history");
     const startButton = document.getElementById("startButton");
-    const clearButton = document.getElementById("clearButton");
+    const clearButton = document.getElementById("clearButton");\n    const saveButton = document.getElementById("saveButton");\n\n    const GOOGLE_SHEETS_API = "https://script.google.com/macros/s/AKfycbyXxXcEbeefo7Cbwe_Ihrp1N01mKgd1mhhiVbXSEEBPFR3_Aq_NQS7Jt0_JVUoTHP79/exec";\n    let lastScanValues = [];\n    let isSaving = false;
 
     let scanner = null;
     let scannerRunning = false;
@@ -206,6 +206,38 @@
       }
     }
 
+    async function saveToGoogleSheets() {
+      if (lastScanValues.length === 0 || isSaving) {
+        return;
+      }
+
+      isSaving = true;
+      saveButton.disabled = true;
+      saveButton.textContent = "Menyimpan...";
+
+      try {
+        await fetch(GOOGLE_SHEETS_API, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify({
+            items: lastScanValues
+          })
+        });
+
+        setStatus(`Data dikirim ke Google Sheets: ${lastScanValues.length} item. Silakan cek Sheet.`);
+      } catch (error) {
+        console.error(error);
+        saveButton.disabled = false;
+        setStatus("Gagal mengirim data ke Google Sheets. Periksa koneksi internet.");
+      } finally {
+        isSaving = false;
+        saveButton.textContent = "Simpan ke Google Sheets";
+      }
+    }
+
     function onScanFailure() {
       // Gagal membaca satu frame adalah kondisi normal saat kamera aktif.
     }
@@ -254,7 +286,7 @@
       }
     }
 
-    startButton.addEventListener("click", async () => {
+    saveButton.addEventListener("click", saveToGoogleSheets);\n\n    startButton.addEventListener("click", async () => {
       if (!scannerRunning) {
         await startScanner();
       }
