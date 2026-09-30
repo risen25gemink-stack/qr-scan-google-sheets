@@ -58,7 +58,7 @@
       </div>
       <div id="reader"></div>
       <div id="status" class="status">Masukkan nama box lalu mulai scanner.</div>
-      <button id="startButton" type="button" onclick="startScanner()">Mulai Scanner</button>
+      <button id="startButton" type="button" onclick="window.__scannerButtonTest()">Mulai Scanner</button>
     </section>
     <section class="result-card">
       <span class="label">Hasil scan terakhir</span>
@@ -84,6 +84,27 @@
   <script>
     const GOOGLE_SHEETS_API =
       "https://script.google.com/macros/s/AKfycbyit0KhDgh16Yu0e6UJ3BNYzlSZb5yB05Uf8603Hg4bjoqUETLkgwJeRZnmxSJXzWRP/exec";
+
+    // Handler diagnostik dibuat global agar tombol tetap bisa diuji
+    // walaupun script scanner utama mengalami error.
+    window.__scannerButtonTest = function() {
+      const status = document.getElementById("status");
+      if (status) {
+        status.textContent = "Tombol berhasil ditekan. Menyiapkan kamera...";
+        status.className = "status";
+      }
+      if (typeof window.startScanner === "function") {
+        window.startScanner();
+      } else {
+        setTimeout(function() {
+          if (typeof window.startScanner === "function") window.startScanner();
+          else if (status) {
+            status.textContent = "Script scanner tidak berhasil dimuat.";
+            status.className = "status error";
+          }
+        }, 50);
+      }
+    };
 
     const statusElement = document.getElementById("status");
     const resultElement = document.getElementById("scanResult");
