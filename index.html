@@ -219,7 +219,7 @@
       document.body.appendChild(script);
     }
 
-    async function onScanSuccess(decodedText) {
+    function onScanSuccess(decodedText) {
       const values = splitScannedData(decodedText);
 
       if (values.length === 0) {
@@ -245,28 +245,17 @@
       resultElement.textContent = values.join("\n");
       addHistory(values, currentBoxName);
       updateControls();
-
       boxNameElement.disabled = true;
 
       setStatus(
         "Scan berhasil: " + values.length + " item. Box " +
-        currentBoxName + ". Scanner dijeda.",
+        currentBoxName + ".",
         "success"
       );
 
-      if (scanner && scannerRunning) {
-        try {
-          scanner.pause(true);
-          scannerRunning = false;
-          scannerPaused = true;
-          startButton.textContent = "Scan Lagi";
-        } catch (error) {
-          console.warn("Gagal menjeda scanner:", error);
-          scannerRunning = false;
-          scannerPaused = false;
-          startButton.textContent = "Scan Lagi";
-        }
-      }
+      // Kamera dihentikan setelah berhasil scan.
+      // Saat "Scan Lagi" ditekan, instance baru dibuat.
+      stopScannerAfterScan();
     }
 
     function onScanFailure() {
@@ -296,11 +285,10 @@
           throw new Error("Library scanner belum termuat.");
         }
 
-        // Kembalikan pola kamera yang sudah terbukti bekerja:
-        // facingMode environment + konfigurasi sederhana.
-        if (!scanner) {
-          scanner = new Html5Qrcode("reader");
-        }
+        // KONFIGURASI KAMERA VERSI YANG SUDAH TERBUKTI BERFUNGSI.
+        // Sengaja tidak menggunakan getCameras(), cameraId manual,
+        // aspectRatio, qrbox dinamis, atau BarcodeDetector eksperimental.
+        scanner = new Html5Qrcode("reader");
 
         setStatus("Meminta izin kamera...");
 
@@ -357,7 +345,10 @@
           );
         } else {
           setStatus(
-            "Kamera tidak dapat dimulai. Pastikan izin kamera diberikan dan halaman dibuka melalui HTTPS.",
+            "Kamera gagal dimulai: " +
+            (error && error.message
+              ? error.message
+              : "periksa izin kamera dan HTTPS."),
             "error"
           );
         }
@@ -367,35 +358,47 @@
             await scanner.clear();
           }
         } catch (clearError) {
-          console.warn(
-            "Gagal membersihkan scanner:",
-            clearError
-          );
+          console.warn("Gagal membersihkan scanner:", clearError);
         }
 
         scanner = null;
       }
     }
 
-    async function pauseScanner() {
-      if (!scanner || !scannerRunning || scannerPaused) {
+    async function stopScannerAfterScan() {
+      if (!scanner) {
+        scannerRunning = false;
+        scannerPaused = false;
+        startButton.textContent = "Scan Lagi";
         return;
       }
 
+      const activeScanner = scanner;
+
+      scanner = null;
+      scannerRunning = false;
+      scannerPaused = false;
+      startButton.textContent = "Scan Lagi";
+
       try {
-        scanner.pause(true);
-        scannerPaused = true;
-        scannerRunning = false;
-        startButton.textContent = "Scan Lagi";
+        await activeScanner.stop();
       } catch (error) {
-        console.warn("Gagal menjeda scanner:", error);
+        console.warn("Stop kamera setelah scan:", error);
+      }
+
+      try {
+        await activeScanner.clear();
+      } catch (error) {
+        console.warn("Clear kamera setelah scan:", error);
       }
     }
 
+    async function pauseScanner() {
+      // Dipertahankan agar fungsi lama tidak memengaruhi kamera.
+      await stopScannerAfterScan();
+    }
+
     async function resumeScanner() {
-      // Gunakan jalur kamera awal yang terbukti bekerja.
-      // Tidak menggunakan pemilihan cameraId, qrbox dinamis,
-      // aspectRatio, atau BarcodeDetector eksperimental.
       await startScanner();
     }
 
