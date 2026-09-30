@@ -58,7 +58,7 @@
       </div>
       <div id="reader"></div>
       <div id="status" class="status">Masukkan nama box lalu mulai scanner.</div>
-      <button id="startButton" type="button">Mulai Scanner</button>
+      <button id="startButton" type="button" onclick="startScanner()">Mulai Scanner</button>
     </section>
     <section class="result-card">
       <span class="label">Hasil scan terakhir</span>
@@ -263,6 +263,7 @@
     }
 
     async function startScanner() {
+      setStatus("Tombol scanner ditekan...");
       const boxName = boxNameElement.value.trim();
 
       if (!boxName) {
@@ -510,6 +511,8 @@
     clearButton.addEventListener("click", clearScanData);
     refreshTrackingButton.addEventListener("click", loadTracking);
 
+    // Tombol scanner memakai onclick langsung pada elemen agar tetap berjalan
+    // meskipun ada masalah pada event listener tambahan.
     startButton.addEventListener("click", async () => {
       if (scannerPaused) await resumeScanner();
       else if (!scannerRunning) await startScanner();
