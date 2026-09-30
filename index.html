@@ -174,7 +174,7 @@
       historyElement.innerHTML = history.map((item, index) =>
         '<div class="history-item"><span class="history-box">Box: ' +
         escapeHtml(item.boxName) + "</span><br><strong>" + (index + 1) + ". " +
-        escapeHtml(item.value) + "</strong><span class="history-time">" +
+        escapeHtml(item.value) + '</strong><span class="history-time">' +
         escapeHtml(item.time) + "</span></div>"
       ).join("");
     }
