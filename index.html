@@ -250,56 +250,146 @@
 
     async function startScanner() {
       const boxName = boxNameElement.value.trim();
+
       if (!boxName) {
         boxNameElement.focus();
         setStatus("Masukkan nama box terlebih dahulu, misalnya PB1.", "warning");
         return;
       }
+
       currentBoxName = boxName;
-      if (scannerRunning) return;
+
+      if (scannerRunning) {
+        return;
+      }
 
       try {
-        if (!scanner) scanner = new Html5Qrcode("reader");
+        if (!window.Html5Qrcode) {
+          throw new Error("Library scanner belum termuat.");
+        }
+
+        if (!scanner) {
+          scanner = new Html5Qrcode("reader");
+        }
+
         setStatus("Meminta izin kamera...");
+
+        // Gunakan kamera belakang dengan konfigurasi yang lebih kompatibel
+        // untuk Android/browser yang tidak menerima object facingMode secara konsisten.
+        let cameraConfig = { facingMode: { ideal: "environment" } };
+
         await scanner.start(
-          { facingMode: "environment" },
+          cameraConfig,
           {
             fps: 10,
-            qrbox: { width: 280, height: 180 },
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.QR_CODE,
-              Html5QrcodeSupportedFormats.PDF_417,
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.CODE_39,
-              Html5QrcodeSupportedFormats.CODE_93,
-              Html5QrcodeSupportedFormats.EAN_13,
-              Html5QrcodeSupportedFormats.EAN_8,
-              Html5QrcodeSupportedFormats.UPC_A,
-              Html5QrcodeSupportedFormats.UPC_E,
-              Html5QrcodeSupportedFormats.ITF
-            ]
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+              const width = Math.floor(Math.min(viewfinderWidth * 0.82, 320));
+              const height = Math.floor(Math.min(viewfinderHeight * 0.48, 220));
+              return {
+                width: Math.max(width, 180),
+                height: Math.max(height, 120)
+              };
+            },
+            aspectRatio: 1.777778,
+            disableFlip: false,
+            experimentalFeatures: {
+              useBarCodeDetectorIfSupported: true
+            }
           },
           onScanSuccess,
           onScanFailure
         );
+
         scannerRunning = true;
         scannerPaused = false;
         startButton.textContent = "Scanner Aktif";
         setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
-      } catch (error) {
-        console.error("Gagal memulai scanner:", error);
-        scannerRunning = false;
-        scannerPaused = false;
-        startButton.textContent = "Mulai Scanner";
-        setStatus(
-          "Kamera tidak dapat dimulai. Pastikan izin kamera diberikan dan halaman menggunakan HTTPS.",
-          "error"
-        );
+      } catch (firstError) {
+        console.warn("Kamera environment gagal, mencoba daftar kamera:", firstError);
+
+        // Fallback: cari kamera yang tersedia dan gunakan kamera belakang
+        // bila browser tidak mendukung constraint environment.
+        try {
+          if (!scanner) {
+            scanner = new Html5Qrcode("reader");
+          }
+
+          const cameras = await Html5Qrcode.getCameras();
+
+          if (!cameras || cameras.length === 0) {
+            throw new Error("Tidak ada kamera yang tersedia.");
+          }
+
+          let cameraId = cameras[0].id;
+          const preferredCamera = cameras.find(camera =>
+            /back|rear|environment|belakang/i.test(camera.label || "")
+          );
+
+          if (preferredCamera) {
+            cameraId = preferredCamera.id;
+          } else if (cameras.length > 1) {
+            cameraId = cameras[cameras.length - 1].id;
+          }
+
+          await scanner.start(
+            cameraId,
+            {
+              fps: 10,
+              qrbox: function(viewfinderWidth, viewfinderHeight) {
+                const width = Math.floor(Math.min(viewfinderWidth * 0.82, 320));
+                const height = Math.floor(Math.min(viewfinderHeight * 0.48, 220));
+                return {
+                  width: Math.max(width, 180),
+                  height: Math.max(height, 120)
+                };
+              },
+              aspectRatio: 1.777778,
+              disableFlip: false,
+              experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+              }
+            },
+            onScanSuccess,
+            onScanFailure
+          );
+
+          scannerRunning = true;
+          scannerPaused = false;
+          startButton.textContent = "Scanner Aktif";
+          setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
+        } catch (fallbackError) {
+          console.error("Gagal memulai scanner:", fallbackError);
+          scannerRunning = false;
+          scannerPaused = false;
+          startButton.textContent = "Mulai Scanner";
+
+          const message = String(fallbackError && fallbackError.message || "").toLowerCase();
+
+          if (message.includes("permission") || message.includes("notallowed")) {
+            setStatus(
+              "Izin kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.",
+              "error"
+            );
+          } else if (message.includes("notfound") || message.includes("no camera")) {
+            setStatus(
+              "Kamera tidak ditemukan. Pastikan kamera tidak sedang dipakai aplikasi lain.",
+              "error"
+            );
+          } else {
+            setStatus(
+              "Kamera gagal dimulai. Pastikan izin kamera aktif dan buka situs melalui HTTPS.",
+              "error"
+            );
+          }
+        }
       }
     }
 
     async function pauseScanner() {
-      if (!scanner || !scannerRunning || scannerPaused) return;
+      if (!scanner || !scannerRunning || scannerPaused) {
+        return;
+      }
+
       try {
         scanner.pause(true);
         scannerPaused = true;
@@ -315,16 +405,20 @@
         await startScanner();
         return;
       }
+
       try {
         scanner.resume();
         scannerPaused = false;
         scannerRunning = true;
         lastScanRawText = "";
         startButton.textContent = "Scanner Aktif";
+
         setStatus("Scanner aktif kembali untuk Box " + currentBoxName + ".");
       } catch (error) {
         console.error("Gagal melanjutkan scanner:", error);
-        setStatus("Scanner gagal dilanjutkan.", "error");
+        setStatus("Scanner gagal dilanjutkan. Coba tekan Mulai Scanner lagi.", "error");
+        scannerPaused = false;
+        scannerRunning = false;
       }
     }
 
