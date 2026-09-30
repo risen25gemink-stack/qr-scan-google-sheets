@@ -259,32 +259,60 @@
 
       currentBoxName = boxName;
 
-      if (scannerRunning) {
-        return;
-      }
+      if (scannerRunning) return;
 
       try {
         if (!window.Html5Qrcode) {
           throw new Error("Library scanner belum termuat.");
         }
 
-        if (!scanner) {
-          scanner = new Html5Qrcode("reader");
+        // Jika instance lama pernah dipause, lanjutkan tanpa membuat kamera baru.
+        if (scanner && scannerPaused) {
+          try {
+            scanner.resume();
+            scannerPaused = false;
+            scannerRunning = true;
+            lastScanRawText = "";
+            startButton.textContent = "Scanner Aktif";
+            setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
+            return;
+          } catch (resumeError) {
+            console.warn("Resume scanner gagal, membuat instance baru.", resumeError);
+            scanner = null;
+            scannerPaused = false;
+            scannerRunning = false;
+          }
         }
 
+        scanner = new Html5Qrcode("reader");
         setStatus("Meminta izin kamera...");
 
-        // Gunakan kamera belakang dengan konfigurasi yang lebih kompatibel
-        // untuk Android/browser yang tidak menerima object facingMode secara konsisten.
-        let cameraConfig = { facingMode: { ideal: "environment" } };
+        const cameras = await Html5Qrcode.getCameras();
+
+        if (!cameras || cameras.length === 0) {
+          throw new Error("Kamera tidak ditemukan.");
+        }
+
+        // Prioritaskan kamera belakang. Pada beberapa Android label kamera
+        // baru terlihat setelah izin kamera diberikan.
+        let cameraId = cameras[0].id;
+        const rearCamera = cameras.find(camera =>
+          /back|rear|environment|belakang/i.test(camera.label || "")
+        );
+
+        if (rearCamera) {
+          cameraId = rearCamera.id;
+        } else if (cameras.length > 1) {
+          cameraId = cameras[cameras.length - 1].id;
+        }
 
         await scanner.start(
-          cameraConfig,
+          cameraId,
           {
             fps: 10,
             qrbox: function(viewfinderWidth, viewfinderHeight) {
               const width = Math.floor(Math.min(viewfinderWidth * 0.82, 320));
-              const height = Math.floor(Math.min(viewfinderHeight * 0.48, 220));
+              const height = Math.floor(Math.min(viewfinderHeight * 0.50, 220));
               return {
                 width: Math.max(width, 180),
                 height: Math.max(height, 120)
@@ -303,92 +331,57 @@
         scannerRunning = true;
         scannerPaused = false;
         startButton.textContent = "Scanner Aktif";
-        setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
-      } catch (firstError) {
-        console.warn("Kamera environment gagal, mencoba daftar kamera:", firstError);
+        setStatus("Scanner aktif untuk Box " + currentBoxName + ".", "success");
 
-        // Fallback: cari kamera yang tersedia dan gunakan kamera belakang
-        // bila browser tidak mendukung constraint environment.
-        try {
-          if (!scanner) {
-            scanner = new Html5Qrcode("reader");
-          }
+      } catch (error) {
+        console.error("Gagal memulai scanner:", error);
 
-          const cameras = await Html5Qrcode.getCameras();
+        scannerRunning = false;
+        scannerPaused = false;
+        startButton.textContent = "Mulai Scanner";
 
-          if (!cameras || cameras.length === 0) {
-            throw new Error("Tidak ada kamera yang tersedia.");
-          }
+        const message = String(error && error.message || "").toLowerCase();
 
-          let cameraId = cameras[0].id;
-          const preferredCamera = cameras.find(camera =>
-            /back|rear|environment|belakang/i.test(camera.label || "")
+        if (message.includes("permission") || message.includes("notallowed")) {
+          setStatus(
+            "Izin kamera ditolak. Izinkan kamera untuk situs ini di pengaturan browser, lalu tekan Mulai Scanner lagi.",
+            "error"
           );
-
-          if (preferredCamera) {
-            cameraId = preferredCamera.id;
-          } else if (cameras.length > 1) {
-            cameraId = cameras[cameras.length - 1].id;
-          }
-
-          await scanner.start(
-            cameraId,
-            {
-              fps: 10,
-              qrbox: function(viewfinderWidth, viewfinderHeight) {
-                const width = Math.floor(Math.min(viewfinderWidth * 0.82, 320));
-                const height = Math.floor(Math.min(viewfinderHeight * 0.48, 220));
-                return {
-                  width: Math.max(width, 180),
-                  height: Math.max(height, 120)
-                };
-              },
-              aspectRatio: 1.777778,
-              disableFlip: false,
-              experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true
-              }
-            },
-            onScanSuccess,
-            onScanFailure
+        } else if (
+          message.includes("notfound") ||
+          message.includes("kamera tidak ditemukan") ||
+          message.includes("no camera")
+        ) {
+          setStatus(
+            "Kamera tidak ditemukan. Pastikan kamera tidak sedang digunakan aplikasi lain.",
+            "error"
           );
-
-          scannerRunning = true;
-          scannerPaused = false;
-          startButton.textContent = "Scanner Aktif";
-          setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
-        } catch (fallbackError) {
-          console.error("Gagal memulai scanner:", fallbackError);
-          scannerRunning = false;
-          scannerPaused = false;
-          startButton.textContent = "Mulai Scanner";
-
-          const message = String(fallbackError && fallbackError.message || "").toLowerCase();
-
-          if (message.includes("permission") || message.includes("notallowed")) {
-            setStatus(
-              "Izin kamera ditolak. Izinkan kamera untuk situs ini lalu coba lagi.",
-              "error"
-            );
-          } else if (message.includes("notfound") || message.includes("no camera")) {
-            setStatus(
-              "Kamera tidak ditemukan. Pastikan kamera tidak sedang dipakai aplikasi lain.",
-              "error"
-            );
-          } else {
-            setStatus(
-              "Kamera gagal dimulai. Pastikan izin kamera aktif dan buka situs melalui HTTPS.",
-              "error"
-            );
-          }
+        } else if (message.includes("secure") || message.includes("https")) {
+          setStatus(
+            "Kamera membutuhkan koneksi HTTPS. Buka scanner melalui alamat GitHub Pages.",
+            "error"
+          );
+        } else {
+          setStatus(
+            "Kamera gagal dimulai: " + (error.message || "periksa izin kamera browser."),
+            "error"
+          );
         }
+
+        // Bersihkan elemen kamera bila proses start gagal setengah jalan.
+        try {
+          if (scanner) {
+            await scanner.clear();
+          }
+        } catch (clearError) {
+          console.warn("Gagal membersihkan scanner:", clearError);
+        }
+        scanner = null;
       }
     }
 
     async function pauseScanner() {
-      if (!scanner || !scannerRunning || scannerPaused) {
-        return;
-      }
+      if (!scanner || !scannerRunning || scannerPaused) return;
 
       try {
         scanner.pause(true);
@@ -401,7 +394,12 @@
     }
 
     async function resumeScanner() {
-      if (!scanner || !scannerPaused) {
+      if (!scanner) {
+        await startScanner();
+        return;
+      }
+
+      if (!scannerPaused) {
         await startScanner();
         return;
       }
@@ -412,13 +410,13 @@
         scannerRunning = true;
         lastScanRawText = "";
         startButton.textContent = "Scanner Aktif";
-
-        setStatus("Scanner aktif kembali untuk Box " + currentBoxName + ".");
+        setStatus("Scanner aktif kembali untuk Box " + currentBoxName + ".", "success");
       } catch (error) {
         console.error("Gagal melanjutkan scanner:", error);
-        setStatus("Scanner gagal dilanjutkan. Coba tekan Mulai Scanner lagi.", "error");
         scannerPaused = false;
         scannerRunning = false;
+        startButton.textContent = "Mulai Scanner";
+        setStatus("Scanner gagal dilanjutkan. Tekan Mulai Scanner lagi.", "error");
       }
     }
 
