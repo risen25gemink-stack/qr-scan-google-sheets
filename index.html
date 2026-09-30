@@ -532,13 +532,6 @@
     clearButton.addEventListener("click", clearScanData);
     refreshTrackingButton.addEventListener("click", loadTracking);
 
-    // Tombol scanner memakai onclick langsung pada elemen agar tetap berjalan
-    // meskipun ada masalah pada event listener tambahan.
-    startButton.addEventListener("click", async () => {
-      if (scannerPaused) await resumeScanner();
-      else if (!scannerRunning) await startScanner();
-    });
-
     window.addEventListener("load", () => {
       updateControls();
       renderHistory();
