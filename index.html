@@ -5,291 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1565c0">
   <title>QR & Barcode Scanner</title>
-
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
   <style>
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f7fb;
-      color: #1f2937;
-    }
-
-    .app {
-      width: min(100%, 520px);
-      min-height: 100vh;
-      margin: 0 auto;
-      padding: 20px 16px 32px;
-    }
-
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f7fb; color: #1f2937; }
+    .app { width: min(100%, 520px); min-height: 100vh; margin: 0 auto; padding: 20px 16px 32px; }
     h1 { margin: 0 0 6px; font-size: 24px; }
     .subtitle { margin: 0 0 18px; color: #64748b; font-size: 14px; }
-
-    .scanner-card, .result-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 14px;
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-      margin-bottom: 16px;
-    }
-
+    .scanner-card, .result-card { background: #fff; border-radius: 16px; padding: 14px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); margin-bottom: 16px; }
     #reader { width: 100%; overflow: hidden; border-radius: 12px; }
-
-    .box-group {
-      margin-bottom: 14px;
-    }
-
-    .box-input {
-      width: 100%;
-      padding: 13px 12px;
-      border: 1px solid #dbe3ef;
-      border-radius: 10px;
-      background: #f8fafc;
-      color: #1f2937;
-      font-size: 16px;
-      outline: none;
-    }
-
-    .box-input:focus {
-      border-color: #1565c0;
-      box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12);
-      background: #fff;
-    }
-
-    .box-input:disabled {
-      background: #eef2f7;
-      color: #64748b;
-    }
-
-    .box-help {
-      display: block;
-      margin-top: 6px;
-      color: #64748b;
-      font-size: 12px;
-    }
-
-    .status {
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #eef5ff;
-      color: #155eac;
-      font-size: 14px;
-      text-align: center;
-    }
-
+    .box-group { margin-bottom: 14px; }
+    .box-input { width: 100%; padding: 13px 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #1f2937; font-size: 16px; outline: none; }
+    .box-input:focus { border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12); background: #fff; }
+    .box-input:disabled { background: #eef2f7; color: #64748b; }
+    .box-help { display: block; margin-top: 6px; color: #64748b; font-size: 12px; }
+    .status { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #eef5ff; color: #155eac; font-size: 14px; text-align: center; }
     .status.success { background: #eaf8ef; color: #176b35; }
     .status.error { background: #fff0f0; color: #b42318; }
     .status.warning { background: #fff8e6; color: #8a5a00; }
-
-    .label {
-      display: block;
-      margin-bottom: 7px;
-      font-size: 13px;
-      font-weight: 700;
-      color: #64748b;
-    }
-
-    #scanResult {
-      width: 100%;
-      min-height: 48px;
-      padding: 12px;
-      border: 1px solid #dbe3ef;
-      border-radius: 10px;
-      background: #f8fafc;
-      font-size: 15px;
-      word-break: break-all;
-      white-space: pre-wrap;
-    }
-
-    .box-summary {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #f1f7ff;
-      color: #155eac;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .counter {
-      margin-top: 8px;
-      color: #64748b;
-      font-size: 12px;
-    }
-
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 13px;
-      margin-top: 10px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
+    .label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 700; color: #64748b; }
+    #scanResult { width: 100%; min-height: 48px; padding: 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; font-size: 15px; word-break: break-all; white-space: pre-wrap; }
+    .box-summary { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #f1f7ff; color: #155eac; font-size: 13px; font-weight: 700; }
+    .counter { margin-top: 8px; color: #64748b; font-size: 12px; }
+    button { width: 100%; border: 0; border-radius: 10px; padding: 13px; margin-top: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
     #startButton { background: #1565c0; color: white; }
     #saveButton { background: #16803c; color: white; }
     #clearButton { background: #e8eef7; color: #1e3a5f; }
-
     .history-title { margin: 0 0 10px; font-size: 17px; }
-
     #history, #trackingList { display: grid; gap: 8px; }
-
-    .tracking-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .tracking-title {
-      margin: 0;
-      font-size: 17px;
-    }
-
-    #refreshTrackingButton {
-      width: auto;
-      margin: 0;
-      padding: 8px 11px;
-      background: #e8eef7;
-      color: #1e3a5f;
-      font-size: 12px;
-    }
-
-    .tracking-summary {
-      margin-bottom: 10px;
-      color: #64748b;
-      font-size: 12px;
-    }
-
-    .tracking-item {
-      padding: 10px;
-      border: 1px solid #dbe3ef;
-      border-radius: 10px;
-      background: #f8fafc;
-      font-size: 13px;
-      word-break: break-all;
-    }
-
-    .tracking-badge {
-      display: inline-block;
-      margin-bottom: 5px;
-      padding: 3px 7px;
-      border-radius: 6px;
-      background: #eaf8ef;
-      color: #176b35;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .tracking-time {
-      display: block;
-      margin-top: 4px;
-      color: #64748b;
-      font-size: 11px;
-    }
-
-    .history-item {
-      padding: 10px;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      background: #f8fafc;
-      font-size: 13px;
-      word-break: break-all;
-    }
-
-    .history-box {
-      display: inline-block;
-      margin-bottom: 5px;
-      padding: 3px 7px;
-      border-radius: 6px;
-      background: #e8f1ff;
-      color: #155eac;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .history-time {
-      display: block;
-      margin-top: 4px;
-      color: #64748b;
-      font-size: 11px;
-    }
+    .tracking-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .tracking-title { margin: 0; font-size: 17px; }
+    #refreshTrackingButton { width: auto; margin: 0; padding: 8px 11px; background: #e8eef7; color: #1e3a5f; font-size: 12px; }
+    .tracking-summary { margin-bottom: 10px; color: #64748b; font-size: 12px; }
+    .tracking-item { padding: 10px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; font-size: 13px; word-break: break-all; }
+    .tracking-badge { display: inline-block; margin-bottom: 5px; padding: 3px 7px; border-radius: 6px; background: #eaf8ef; color: #176b35; font-size: 11px; font-weight: 700; }
+    .tracking-time { display: block; margin-top: 4px; color: #64748b; font-size: 11px; }
+    .history-item { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; font-size: 13px; word-break: break-all; }
+    .history-box { display: inline-block; margin-bottom: 5px; padding: 3px 7px; border-radius: 6px; background: #e8f1ff; color: #155eac; font-size: 11px; font-weight: 700; }
+    .history-time { display: block; margin-top: 4px; color: #64748b; font-size: 11px; }
   </style>
 </head>
-
 <body>
   <main class="app">
     <h1>QR & Barcode Scanner</h1>
     <p class="subtitle">Masukkan nama box, scan kode, lalu simpan hasilnya ke Google Sheets.</p>
-
     <section class="scanner-card">
       <div class="box-group">
         <label class="label" for="boxName">Nama Box</label>
-        <input
-          id="boxName"
-          class="box-input"
-          type="text"
-          placeholder="Contoh: PB1"
-          autocomplete="off"
-          maxlength="50"
-        >
+        <input id="boxName" class="box-input" type="text" placeholder="Contoh: PB1" autocomplete="off" maxlength="50">
         <span class="box-help">Masukkan nama box sebelum mulai scan, misalnya PB1.</span>
       </div>
-
       <div id="reader"></div>
       <div id="status" class="status">Masukkan nama box lalu mulai scanner.</div>
       <button id="startButton" type="button">Mulai Scanner</button>
     </section>
-
     <section class="result-card">
       <span class="label">Hasil scan terakhir</span>
       <div id="scanResult">Belum ada hasil scan.</div>
       <div id="boxSummary" class="box-summary" hidden></div>
       <div id="counter" class="counter">0 item siap disimpan.</div>
-
       <button id="saveButton" type="button" disabled>Simpan ke Google Sheets</button>
       <button id="clearButton" type="button">Hapus Hasil & Data di Google Sheets</button>
     </section>
-
     <section class="result-card">
       <div class="tracking-head">
         <h2 class="tracking-title">Tracking Google Sheets</h2>
         <button id="refreshTrackingButton" type="button">Refresh</button>
       </div>
-      <div id="trackingSummary" class="tracking-summary">
-        Masukkan nama box untuk melihat data yang sudah tersimpan.
-      </div>
-      <div id="trackingList">
-        <div class="tracking-item">Belum ada tracking.</div>
-      </div>
+      <div id="trackingSummary" class="tracking-summary">Masukkan nama box untuk melihat data yang sudah tersimpan.</div>
+      <div id="trackingList"><div class="tracking-item">Belum ada tracking.</div></div>
     </section>
-
     <section class="result-card">
       <h2 class="history-title">Riwayat Scan</h2>
-      <div id="history">
-        <div class="history-item">Belum ada data.</div>
-      </div>
+      <div id="history"><div class="history-item">Belum ada data.</div></div>
     </section>
   </main>
-
   <script>
-    /*
-     * Endpoint Web App Apps Script.
-     */
     const GOOGLE_SHEETS_API =
-      "https://script.google.com/macros/s/AKfycbyzOr_WY47ntm6lchfMI3bRC2PAkPu8c7WZiWk2dO30M__VsN8X5zrAzsbHvcpF41_m/exec";
+      "https://script.google.com/macros/s/AKfycbyit0KhDgh16Yu0e6UJ3BNYzlSZb5yB05Uf8603Hg4bjoqUETLkgwJeRZnmxSJXzWRP/exec";
 
     const statusElement = document.getElementById("status");
     const resultElement = document.getElementById("scanResult");
@@ -308,11 +102,9 @@
     let lastScanRawText = "";
     let currentBoxName = "";
     let isSaving = false;
-
     let scanner = null;
     let scannerRunning = false;
     let scannerPaused = false;
-
     let history = [];
     let trackingRequestId = 0;
 
@@ -324,15 +116,11 @@
     function updateControls() {
       const hasData = lastScanValues.length > 0;
       const hasBox = currentBoxName.trim() !== "";
-
       saveButton.disabled = !hasData || !hasBox || isSaving;
       clearButton.disabled = !hasData || isSaving;
-
-      counterElement.textContent =
-        lastScanValues.length === 0
-          ? "0 item siap disimpan."
-          : lastScanValues.length + " item siap disimpan.";
-
+      counterElement.textContent = lastScanValues.length === 0
+        ? "0 item siap disimpan."
+        : lastScanValues.length + " item siap disimpan.";
       if (hasData && hasBox) {
         boxSummaryElement.hidden = false;
         boxSummaryElement.textContent = "Box: " + currentBoxName;
@@ -343,172 +131,103 @@
     }
 
     function splitScannedData(decodedText) {
-      return String(decodedText)
-        .split(/\r?\n/)
-        .map(value => value.trim())
-        .filter(Boolean);
+      return String(decodedText).split(/\r?\n/).map(value => value.trim()).filter(Boolean);
     }
 
     function escapeHtml(value) {
-      return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+      return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
     }
 
     function addHistory(values, boxName) {
       const time = new Date().toLocaleString("id-ID");
-
-      values.forEach(value => {
-        history.unshift({ value, boxName, time });
-      });
-
+      values.forEach(value => history.unshift({ value, boxName, time }));
       renderHistory();
     }
 
     function renderHistory() {
       if (history.length === 0) {
-        historyElement.innerHTML =
-          '<div class="history-item">Belum ada data.</div>';
+        historyElement.innerHTML = '<div class="history-item">Belum ada data.</div>';
         return;
       }
-
-      historyElement.innerHTML = history.map((item, index) => {
-        return (
-          '<div class="history-item">' +
-            '<span class="history-box">Box: ' +
-            escapeHtml(item.boxName) +
-            "</span>" +
-            "<br>" +
-            "<strong>" +
-            (index + 1) +
-            ". " +
-            escapeHtml(item.value) +
-            "</strong>" +
-            '<span class="history-time">' +
-            escapeHtml(item.time) +
-            "</span>" +
-          "</div>"
-        );
-      }).join("");
+      historyElement.innerHTML = history.map((item, index) =>
+        '<div class="history-item"><span class="history-box">Box: ' +
+        escapeHtml(item.boxName) + "</span><br><strong>" + (index + 1) + ". " +
+        escapeHtml(item.value) + "</strong><span class="history-time">" +
+        escapeHtml(item.time) + "</span></div>"
+      ).join("");
     }
-
 
     function renderTracking(records, boxName) {
       if (!records || records.length === 0) {
-        trackingSummaryElement.textContent =
-          boxName
-            ? "Belum ada data tersimpan untuk Box " + boxName + "."
-            : "Masukkan nama box untuk melihat data yang sudah tersimpan.";
-        trackingListElement.innerHTML =
-          '<div class="tracking-item">Belum ada data tersimpan.</div>';
+        trackingSummaryElement.textContent = boxName
+          ? "Belum ada data tersimpan untuk Box " + boxName + "."
+          : "Masukkan nama box untuk melihat data yang sudah tersimpan.";
+        trackingListElement.innerHTML = '<div class="tracking-item">Belum ada data tersimpan.</div>';
         return;
       }
-
       trackingSummaryElement.textContent =
-        records.length +
-        " data tersimpan di Google Sheets untuk Box " +
-        boxName +
-        ".";
-
-      trackingListElement.innerHTML = records.map((item, index) => {
-        return (
-          '<div class="tracking-item">' +
-            '<span class="tracking-badge">Tersimpan di Google Sheets</span>' +
-            "<br>" +
-            "<strong>" +
-            (index + 1) +
-            ". " +
-            escapeHtml(item.barcode) +
-            "</strong>" +
-            '<span class="tracking-time">' +
-            escapeHtml(item.time) +
-            "</span>" +
-          "</div>"
-        );
-      }).join("");
+        records.length + " data tersimpan di Google Sheets untuk Box " + boxName + ".";
+      trackingListElement.innerHTML = records.map((item, index) =>
+        '<div class="tracking-item"><span class="tracking-badge">Tersimpan di Google Sheets</span><br><strong>' +
+        (index + 1) + ". " + escapeHtml(item.barcode) +
+        '</strong><span class="tracking-time">' + escapeHtml(item.time) + "</span></div>"
+      ).join("");
     }
 
     function loadTracking() {
       const boxName = boxNameElement.value.trim();
-
       if (!boxName) {
-        trackingSummaryElement.textContent =
-          "Masukkan nama box untuk melihat data yang sudah tersimpan.";
-        trackingListElement.innerHTML =
-          '<div class="tracking-item">Nama box belum diisi.</div>';
+        trackingSummaryElement.textContent = "Masukkan nama box untuk melihat data yang sudah tersimpan.";
+        trackingListElement.innerHTML = '<div class="tracking-item">Nama box belum diisi.</div>';
         return;
       }
 
       const requestId = ++trackingRequestId;
-      trackingSummaryElement.textContent =
-        "Mengambil data Box " + boxName + " dari Google Sheets...";
-      trackingListElement.innerHTML =
-        '<div class="tracking-item">Memuat tracking...</div>';
-
+      trackingSummaryElement.textContent = "Mengambil data Box " + boxName + " dari Google Sheets...";
+      trackingListElement.innerHTML = '<div class="tracking-item">Memuat tracking...</div>';
       const callbackName = "__qrTracking_" + Date.now() + "_" + requestId;
+      const script = document.createElement("script");
 
       window[callbackName] = function(response) {
         try {
-          if (requestId !== trackingRequestId) {
-            return;
-          }
-
+          if (requestId !== trackingRequestId) return;
           if (!response || response.success !== true) {
             renderTracking([], boxName);
             trackingSummaryElement.textContent =
-              (response && response.message) ||
-              "Tracking tidak dapat dimuat.";
+              (response && response.message) || "Tracking tidak dapat dimuat.";
             return;
           }
-
           renderTracking(response.records || [], boxName);
         } finally {
           delete window[callbackName];
-          if (script && script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+          if (script.parentNode) script.parentNode.removeChild(script);
         }
       };
 
-      const script = document.createElement("script");
-      script.src =
-        GOOGLE_SHEETS_API +
-        "?action=tracking&boxName=" +
-        encodeURIComponent(boxName) +
-        "&callback=" +
-        encodeURIComponent(callbackName);
-
+      script.src = GOOGLE_SHEETS_API +
+        "?action=tracking&boxName=" + encodeURIComponent(boxName) +
+        "&callback=" + encodeURIComponent(callbackName);
       script.onerror = function() {
         delete window[callbackName];
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
+        if (script.parentNode) script.parentNode.removeChild(script);
         trackingSummaryElement.textContent =
           "Tracking gagal dimuat. Periksa deployment Apps Script.";
         trackingListElement.innerHTML =
           '<div class="tracking-item">Gagal mengambil data dari Google Sheets.</div>';
       };
-
       document.body.appendChild(script);
     }
 
     async function onScanSuccess(decodedText) {
       const values = splitScannedData(decodedText);
-
       if (values.length === 0) {
         setStatus("Kode terbaca, tetapi tidak berisi data.", "warning");
         return;
       }
-
-      if (String(decodedText) === lastScanRawText) {
-        return;
-      }
+      if (String(decodedText) === lastScanRawText) return;
 
       const boxName = boxNameElement.value.trim();
-
       if (!boxName) {
         setStatus("Masukkan nama box terlebih dahulu, misalnya PB1.", "warning");
         return;
@@ -517,55 +236,31 @@
       lastScanRawText = String(decodedText);
       currentBoxName = boxName;
       lastScanValues = values;
-
       resultElement.textContent = values.join("\n");
       addHistory(values, currentBoxName);
       updateControls();
-
-      /*
-       * Kunci nama box selama hasil scan masih aktif supaya
-       * data tidak tersimpan ke box yang berbeda dari saat scan.
-       */
       boxNameElement.disabled = true;
 
-      setStatus(
-        "Scan berhasil: " +
-        values.length +
-        " item. Box " +
-        currentBoxName +
-        ". Scanner dijeda.",
-        "success"
-      );
-
+      setStatus("Scan berhasil: " + values.length + " item. Box " +
+        currentBoxName + ". Scanner dijeda.", "success");
       await pauseScanner();
     }
 
-    function onScanFailure() {
-      // Frame tanpa kode yang terbaca adalah kondisi normal.
-    }
+    function onScanFailure() {}
 
     async function startScanner() {
       const boxName = boxNameElement.value.trim();
-
       if (!boxName) {
         boxNameElement.focus();
         setStatus("Masukkan nama box terlebih dahulu, misalnya PB1.", "warning");
         return;
       }
-
       currentBoxName = boxName;
-
-      if (scannerRunning) {
-        return;
-      }
+      if (scannerRunning) return;
 
       try {
-        if (!scanner) {
-          scanner = new Html5Qrcode("reader");
-        }
-
+        if (!scanner) scanner = new Html5Qrcode("reader");
         setStatus("Meminta izin kamera...");
-
         await scanner.start(
           { facingMode: "environment" },
           {
@@ -587,18 +282,15 @@
           onScanSuccess,
           onScanFailure
         );
-
         scannerRunning = true;
         scannerPaused = false;
         startButton.textContent = "Scanner Aktif";
         setStatus("Scanner aktif untuk Box " + currentBoxName + ".");
       } catch (error) {
         console.error("Gagal memulai scanner:", error);
-
         scannerRunning = false;
         scannerPaused = false;
         startButton.textContent = "Mulai Scanner";
-
         setStatus(
           "Kamera tidak dapat dimulai. Pastikan izin kamera diberikan dan halaman menggunakan HTTPS.",
           "error"
@@ -607,10 +299,7 @@
     }
 
     async function pauseScanner() {
-      if (!scanner || !scannerRunning || scannerPaused) {
-        return;
-      }
-
+      if (!scanner || !scannerRunning || scannerPaused) return;
       try {
         scanner.pause(true);
         scannerPaused = true;
@@ -626,14 +315,12 @@
         await startScanner();
         return;
       }
-
       try {
         scanner.resume();
         scannerPaused = false;
         scannerRunning = true;
         lastScanRawText = "";
         startButton.textContent = "Scanner Aktif";
-
         setStatus("Scanner aktif kembali untuk Box " + currentBoxName + ".");
       } catch (error) {
         console.error("Gagal melanjutkan scanner:", error);
@@ -645,35 +332,25 @@
       return fetch(GOOGLE_SHEETS_API, {
         method: "POST",
         mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       });
     }
 
     async function saveToGoogleSheets() {
-      if (isSaving) {
-        return;
-      }
-
+      if (isSaving) return;
       if (lastScanValues.length === 0) {
         setStatus("Belum ada hasil scan untuk disimpan.", "warning");
         return;
       }
 
       const boxName = boxNameElement.value.trim() || currentBoxName.trim();
-
       if (!boxName) {
         setStatus("Nama box belum diisi.", "warning");
         return;
       }
-
       if (!navigator.onLine) {
-        setStatus(
-          "Perangkat sedang offline. Periksa koneksi internet.",
-          "error"
-        );
+        setStatus("Perangkat sedang offline. Periksa koneksi internet.", "error");
         return;
       }
 
@@ -682,37 +359,16 @@
       updateControls();
       saveButton.textContent = "Mengirim...";
 
-      const payload = {
-        items: [...lastScanValues],
-        boxName: currentBoxName
-      };
-
       try {
-        /*
-         * text/plain menghindari preflight CORS.
-         * mode no-cors diperlukan karena Apps Script ContentService
-         * tidak memberikan response CORS yang dapat dibaca frontend.
-         */
-        await sendToGoogleSheets(payload);
-
+        await sendToGoogleSheets({ items: [...lastScanValues], boxName: currentBoxName });
         setStatus(
-          "Data dikirim: " +
-          lastScanValues.length +
-          " item ke Box " +
-          currentBoxName +
-          ".",
+          "Data dikirim: " + lastScanValues.length + " item ke Box " + currentBoxName + ".",
           "success"
         );
-
         setTimeout(loadTracking, 800);
       } catch (error) {
         console.error("Gagal mengirim data:", error);
-
-        setStatus(
-          "Pengiriman gagal: " +
-          (error.message || "periksa koneksi internet."),
-          "error"
-        );
+        setStatus("Pengiriman gagal: " + (error.message || "periksa koneksi internet."), "error");
       } finally {
         isSaving = false;
         saveButton.textContent = "Simpan ke Google Sheets";
@@ -721,75 +377,45 @@
     }
 
     async function clearScanData() {
-      if (isSaving) {
-        return;
-      }
-
+      if (isSaving) return;
       if (lastScanValues.length === 0) {
         setStatus("Belum ada hasil scan untuk dihapus.", "warning");
         return;
       }
 
       const boxName = currentBoxName.trim() || boxNameElement.value.trim();
-
       if (!boxName) {
         setStatus("Nama box tidak ditemukan.", "warning");
         return;
       }
-
       if (!navigator.onLine) {
         setStatus("Perangkat sedang offline. Periksa koneksi internet.", "error");
         return;
       }
 
       const confirmed = window.confirm(
-        "Hapus " +
-        lastScanValues.length +
-        " data hasil scan dari Google Sheets untuk Box " +
-        boxName +
+        "Hapus " + lastScanValues.length +
+        " data hasil scan dari Google Sheets untuk Box " + boxName +
         "?\n\nData yang cocok akan dihapus dari Sheet1."
       );
-
-      if (!confirmed) {
-        return;
-      }
+      if (!confirmed) return;
 
       isSaving = true;
       updateControls();
       clearButton.textContent = "Menghapus...";
 
       try {
-        const payload = {
-          action: "delete",
-          items: [...lastScanValues],
-          boxName: boxName
-        };
-
-        await sendToGoogleSheets(payload);
-
+        await sendToGoogleSheets({ action: "delete", items: [...lastScanValues], boxName });
         lastScanValues = [];
         lastScanRawText = "";
         currentBoxName = "";
-
         resultElement.textContent = "Belum ada hasil scan.";
         boxNameElement.disabled = false;
-
-        setStatus(
-          "Permintaan penghapusan dikirim untuk " +
-          boxName +
-          ".",
-          "success"
-        );
-
+        setStatus("Permintaan penghapusan dikirim untuk " + boxName + ".", "success");
         setTimeout(loadTracking, 800);
       } catch (error) {
         console.error("Gagal menghapus data:", error);
-
-        setStatus(
-          "Penghapusan gagal: " +
-          (error.message || "periksa koneksi internet."),
-          "error"
-        );
+        setStatus("Penghapusan gagal: " + (error.message || "periksa koneksi internet."), "error");
       } finally {
         isSaving = false;
         clearButton.textContent = "Hapus Hasil & Data di Google Sheets";
@@ -798,11 +424,8 @@
     }
 
     boxNameElement.addEventListener("input", () => {
-      if (!lastScanValues.length) {
-        currentBoxName = boxNameElement.value.trim();
-      }
+      if (!lastScanValues.length) currentBoxName = boxNameElement.value.trim();
       updateControls();
-
       if (boxNameElement.value.trim()) {
         clearTimeout(window.__trackingTimer);
         window.__trackingTimer = setTimeout(loadTracking, 500);
@@ -814,11 +437,8 @@
     refreshTrackingButton.addEventListener("click", loadTracking);
 
     startButton.addEventListener("click", async () => {
-      if (scannerPaused) {
-        await resumeScanner();
-      } else if (!scannerRunning) {
-        await startScanner();
-      }
+      if (scannerPaused) await resumeScanner();
+      else if (!scannerRunning) await startScanner();
     });
 
     window.addEventListener("load", () => {
