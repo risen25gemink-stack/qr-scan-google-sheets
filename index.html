@@ -311,12 +311,12 @@
           {
             // Kecepatan cukup tinggi tanpa memaksa rasio video kamera.
             fps: 30,
-            // Area putih diperbesar lagi mengikuti contoh foto.
-            // Tetap SQUARE (lebar = tinggi), dengan ukuran 94% dari sisi terpendek.
-            // Margin kecil tetap disisakan supaya garis putih tidak menempel ke tepi kamera.
+            // Area scan portrait: tinggi lebih besar daripada lebar.
+            // Dibuat mendekati garis merah pada kamera dengan margin yang tetap rapi.
             qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const side = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.99);
-              return { width: side, height: side };
+              const width = Math.floor(viewfinderWidth * 0.86);
+              const height = Math.floor(viewfinderHeight * 0.94);
+              return { width, height };
             },
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
