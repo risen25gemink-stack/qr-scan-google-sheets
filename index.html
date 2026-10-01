@@ -308,8 +308,12 @@
           {
             // Kecepatan cukup tinggi tanpa memaksa rasio video kamera.
             fps: 30,
-            // Nilai angka menghasilkan kotak scan native 1:1 (240x240).
-            qrbox: 240,
+            // Area pindai besar mengikuti hampir seluruh frame kamera.
+            // Tetap diberi margin simetris agar garis pembatas terlihat rapi.
+            qrbox: (viewfinderWidth, viewfinderHeight) => ({
+              width: Math.floor(viewfinderWidth * 0.90),
+              height: Math.floor(viewfinderHeight * 0.90)
+            }),
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
               Html5QrcodeSupportedFormats.QR_CODE,
