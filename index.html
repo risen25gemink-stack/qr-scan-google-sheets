@@ -16,8 +16,22 @@
     #reader { width: 100%; overflow: hidden; border-radius: 12px; }
     /* Area scan dibuat lebih lebar dan pipih agar cocok untuk barcode 1D. */
     #reader video { width: 100% !important; border-radius: 12px; object-fit: cover; }
-    #reader__scan_region { min-height: 180px; }
+    #reader__scan_region { min-height: 180px; position: relative; }
     #reader__scan_region img { display: none !important; }
+    /* Paksa kotak overlay html5-qrcode menjadi SQUARE, bukan melebar. */
+    #qr-shaded-region {
+      width: 280px !important;
+      height: 280px !important;
+      max-width: 280px !important;
+      max-height: 280px !important;
+      min-width: 280px !important;
+      min-height: 280px !important;
+      left: 50% !important;
+      top: 50% !important;
+      right: auto !important;
+      bottom: auto !important;
+      transform: translate(-50%, -50%) !important;
+    }
     .box-group { margin-bottom: 14px; }
     .box-input { width: 100%; padding: 13px 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #1f2937; font-size: 16px; outline: none; }
     .box-input:focus { border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12); background: #fff; }
@@ -325,16 +339,8 @@
             // Lebih banyak frame per detik = barcode lebih cepat terdeteksi.
             fps: 20,
             // Area dibuat lebar + rendah: ideal untuk barcode 1D dan tetap bisa QR.
-            qrbox: function(viewfinderWidth, viewfinderHeight) {
-              // Area scan dibuat benar-benar PERSEGI seperti contoh yang diberikan.
-              // Sedikit besar agar barcode mudah masuk ke area deteksi.
-              const size = Math.min(
-                320,
-                Math.floor(viewfinderWidth * 0.62),
-                Math.floor(viewfinderHeight * 0.62)
-              );
-              return { width: size, height: size };
-            },
+            // Gunakan ukuran FIXED agar html5-qrcode tidak mengubahnya menjadi persegi panjang.
+            qrbox: { width: 280, height: 280 },
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
               Html5QrcodeSupportedFormats.QR_CODE,
