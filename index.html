@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1565c0">
   <title>QR & Barcode Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, sans-serif; background: #f4f7fb; color: #1f2937; }
@@ -16,31 +16,23 @@
     #reader { width: 100%; overflow: hidden; border-radius: 12px; }
     /* Area scan dibuat lebih lebar dan pipih agar cocok untuk barcode 1D. */
     #reader { position: relative; }
-    #reader video { width: 100% !important; height: auto !important; max-height: 100% !important; border-radius: 12px; object-fit: cover; display: block; }
-    #reader__scan_region { min-height: 180px; position: relative; }
+    #reader video {
+      width: 100% !important;
+      height: auto !important;
+      max-height: 100% !important;
+      border-radius: 12px;
+      object-fit: cover;
+      display: block;
+    }
+    #reader__scan_region { position: relative; }
     #reader__scan_region img { display: none !important; }
 
-    /* Sembunyikan overlay bawaan html5-qrcode.
-       Overlay kita sendiri dibuat 1:1 sehingga tidak bisa berubah menjadi rectangle. */
-    #qr-shaded-region { display: none !important; }
-
-    /* Overlay scanner custom: SELALU square, sisi sama panjang. */
-    .scanner-square-overlay {
-      position: absolute !important;
-      width: 240px !important;
-      height: 240px !important;
-      left: 50% !important;
-      top: 50% !important;
-      transform: translate(-50%, -50%) !important;
-      border: 3px solid rgba(255,255,255,0.95);
-      border-radius: 0;
-      box-sizing: border-box;
-      pointer-events: none;
-      z-index: 20;
+    /* Biarkan html5-qrcode menggambar overlay-nya sendiri.
+       qrbox 240x240 di konfigurasi akan menjadi area scan 1:1. */
+    #qr-shaded-region {
+      box-sizing: border-box !important;
+      border-radius: 0 !important;
     }
-
-    /* Jangan biarkan instance kamera lama menghasilkan layar kedua. */
-    #reader > div:not(#reader__scan_region) { display: none !important; }
     .box-group { margin-bottom: 14px; }
     .box-input { width: 100%; padding: 13px 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #1f2937; font-size: 16px; outline: none; }
     .box-input:focus { border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12); background: #fff; }
@@ -268,18 +260,6 @@
       document.body.appendChild(script);
     }
 
-    function ensureScannerSquareOverlay() {
-      const readerElement = document.getElementById("reader");
-      if (!readerElement) return;
-
-      const oldOverlay = readerElement.querySelector(".scanner-square-overlay");
-      if (oldOverlay) oldOverlay.remove();
-
-      const overlay = document.createElement("div");
-      overlay.className = "scanner-square-overlay";
-      readerElement.appendChild(overlay);
-    }
-
     function onScanSuccess(decodedText) {
       const values = splitScannedData(decodedText);
 
@@ -350,13 +330,6 @@
           throw new Error("Library scanner belum termuat.");
         }
 
-        // Bersihkan elemen kamera yang mungkin tertinggal dari instance sebelumnya.
-        // Ini mencegah dua video tampil bersamaan setelah Scan Lagi.
-        const readerElement = document.getElementById("reader");
-        if (readerElement) {
-          readerElement.innerHTML = "";
-        }
-
         // KONFIGURASI KAMERA VERSI YANG SUDAH TERBUKTI BERFUNGSI.
         // Sengaja tidak menggunakan getCameras(), cameraId manual,
         // aspectRatio, qrbox dinamis, atau BarcodeDetector eksperimental.
@@ -370,8 +343,10 @@
             // Lebih banyak frame per detik = barcode lebih cepat terdeteksi.
             fps: 20,
             // Area dibuat lebar + rendah: ideal untuk barcode 1D dan tetap bisa QR.
-            // Ukuran sedang agar barcode mudah diarahkan tanpa membuat area terlalu besar.
+            // Native overlay html5-qrcode: benar-benar 1:1.
             qrbox: { width: 240, height: 240 },
+            // Video square membuat posisi area scan konsisten di layar HP.
+            aspectRatio: 1.0,
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
               Html5QrcodeSupportedFormats.QR_CODE,
@@ -393,10 +368,8 @@
 
         scannerRunning = true;
         scannerPaused = false;
-        // Overlay custom dibuat setelah html5-qrcode selesai membuat video,
-        // sehingga bentuk visual tidak mengikuti perhitungan ukuran library.
-        ensureScannerSquareOverlay();
         lastScanRawText = "";
+        scannerStarting = false;
         startButton.textContent = "Scanner Aktif";
         setStatus(
           "Arahkan kamera ke QR atau barcode untuk Box " +
