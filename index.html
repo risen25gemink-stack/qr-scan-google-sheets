@@ -326,11 +326,14 @@
             fps: 20,
             // Area dibuat lebar + rendah: ideal untuk barcode 1D dan tetap bisa QR.
             qrbox: function(viewfinderWidth, viewfinderHeight) {
-              // Area vertikal: cukup besar untuk barcode 1D, tetapi tidak memenuhi layar.
-              // Lebar sekitar 45% layar, tinggi sekitar 58% layar.
-              const width = Math.min(300, Math.floor(viewfinderWidth * 0.48));
-              const height = Math.min(360, Math.floor(viewfinderHeight * 0.58));
-              return { width: Math.max(220, width), height: Math.max(300, height) };
+              // Area scan dibuat benar-benar PERSEGI seperti contoh yang diberikan.
+              // Sedikit besar agar barcode mudah masuk ke area deteksi.
+              const size = Math.min(
+                320,
+                Math.floor(viewfinderWidth * 0.62),
+                Math.floor(viewfinderHeight * 0.62)
+              );
+              return { width: size, height: size };
             },
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
