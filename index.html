@@ -42,7 +42,6 @@
     button:disabled { opacity: 0.55; cursor: not-allowed; }
     #startButton { background: #1565c0; color: white; }
     #saveButton { background: #16803c; color: white; }
-    #clearButton { background: #e8eef7; color: #1e3a5f; }
     .history-title { margin: 0 0 10px; font-size: 17px; }
     #history, #trackingList { display: grid; gap: 8px; }
     .tracking-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -77,7 +76,6 @@
       <div id="boxSummary" class="box-summary" hidden></div>
       <div id="counter" class="counter">0 item siap disimpan.</div>
       <button id="saveButton" type="button" disabled>Simpan ke Google Sheets</button>
-      <button id="clearButton" type="button">Hapus Hasil & Data di Google Sheets</button>
     </section>
     <section class="result-card">
       <div class="tracking-head">
@@ -103,7 +101,6 @@
     const counterElement = document.getElementById("counter");
     const historyElement = document.getElementById("history");
     const startButton = document.getElementById("startButton");
-    const clearButton = document.getElementById("clearButton");
     const saveButton = document.getElementById("saveButton");
     const refreshTrackingButton = document.getElementById("refreshTrackingButton");
     const trackingSummaryElement = document.getElementById("trackingSummary");
@@ -129,7 +126,6 @@
       const hasData = lastScanValues.length > 0;
       const hasBox = currentBoxName.trim() !== "";
       saveButton.disabled = !hasData || !hasBox || isSaving;
-      clearButton.disabled = !hasData || isSaving;
       counterElement.textContent = lastScanValues.length === 0
         ? "0 item siap disimpan."
         : lastScanValues.length + " item siap disimpan.";
@@ -475,52 +471,6 @@
       }
     }
 
-    async function clearScanData() {
-      if (isSaving) return;
-      if (lastScanValues.length === 0) {
-        setStatus("Belum ada hasil scan untuk dihapus.", "warning");
-        return;
-      }
-
-      const boxName = currentBoxName.trim();
-      if (!boxName) {
-        setStatus("Nama box tidak ditemukan.", "warning");
-        return;
-      }
-      if (!navigator.onLine) {
-        setStatus("Perangkat sedang offline. Periksa koneksi internet.", "error");
-        return;
-      }
-
-      const confirmed = window.confirm(
-        "Hapus " + lastScanValues.length +
-        " data hasil scan dari Google Sheets untuk Box " + boxName +
-        "?\n\nData yang cocok akan dihapus dari Sheet1."
-      );
-      if (!confirmed) return;
-
-      isSaving = true;
-      updateControls();
-      clearButton.textContent = "Menghapus...";
-
-      try {
-        await sendToGoogleSheets({ action: "delete", items: [...lastScanValues], boxName });
-        lastScanValues = [];
-        lastScanRawText = "";
-        currentBoxName = "";
-        resultElement.textContent = "Belum ada hasil scan.";
-        boxNameElement.disabled = false;
-        setStatus("Permintaan penghapusan dikirim untuk " + boxName + ".", "success");
-        setTimeout(loadTracking, 800);
-      } catch (error) {
-        console.error("Gagal menghapus data:", error);
-        setStatus("Penghapusan gagal: " + (error.message || "periksa koneksi internet."), "error");
-      } finally {
-        isSaving = false;
-        clearButton.textContent = "Hapus Hasil & Data di Google Sheets";
-        updateControls();
-      }
-    }
 
     boxNameElement.addEventListener("input", () => {
       if (!lastScanValues.length) currentBoxName = boxNameElement.value.trim();
@@ -532,7 +482,6 @@
     });
 
     saveButton.addEventListener("click", saveToGoogleSheets);
-    clearButton.addEventListener("click", clearScanData);
     refreshTrackingButton.addEventListener("click", loadTracking);
 
     window.addEventListener("load", () => {
