@@ -14,6 +14,10 @@
     .subtitle { margin: 0 0 18px; color: #64748b; font-size: 14px; }
     .scanner-card, .result-card { background: #fff; border-radius: 16px; padding: 14px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); margin-bottom: 16px; }
     #reader { width: 100%; overflow: hidden; border-radius: 12px; }
+    /* Area scan dibuat lebih lebar dan pipih agar cocok untuk barcode 1D. */
+    #reader video { width: 100% !important; border-radius: 12px; object-fit: cover; }
+    #reader__scan_region { min-height: 180px; }
+    #reader__scan_region img { display: none !important; }
     .box-group { margin-bottom: 14px; }
     .box-input { width: 100%; padding: 13px 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: #f8fafc; color: #1f2937; font-size: 16px; outline: none; }
     .box-input:focus { border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12); background: #fff; }
@@ -259,6 +263,7 @@
         return;
       }
 
+      // Kunci hasil secepat mungkin agar satu barcode tidak diproses berulang.
       lastScanRawText = String(decodedText);
       currentBoxName = boxName;
       lastScanValues = values;
@@ -317,11 +322,17 @@
         await scanner.start(
           { facingMode: "environment" },
           {
-            fps: 10,
-            qrbox: { width: 280, height: 180 },
+            // Lebih banyak frame per detik = barcode lebih cepat terdeteksi.
+            fps: 20,
+            // Area dibuat lebar + rendah: ideal untuk barcode 1D dan tetap bisa QR.
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+              const width = Math.floor(viewfinderWidth * 0.90);
+              const height = Math.min(125, Math.floor(viewfinderHeight * 0.32));
+              return { width: width, height: Math.max(90, height) };
+            },
+            // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
               Html5QrcodeSupportedFormats.QR_CODE,
-              Html5QrcodeSupportedFormats.PDF_417,
               Html5QrcodeSupportedFormats.CODE_128,
               Html5QrcodeSupportedFormats.CODE_39,
               Html5QrcodeSupportedFormats.CODE_93,
@@ -330,7 +341,9 @@
               Html5QrcodeSupportedFormats.UPC_A,
               Html5QrcodeSupportedFormats.UPC_E,
               Html5QrcodeSupportedFormats.ITF
-            ]
+            ],
+            // Kamera belakang tidak perlu dicoba mirror; ini mengurangi pekerjaan decoder.
+            disableFlip: true
           },
           onScanSuccess,
           onScanFailure
