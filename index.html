@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1565c0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>QR & Barcode Scanner</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
   <style>
@@ -308,11 +311,11 @@
           {
             // Kecepatan cukup tinggi tanpa memaksa rasio video kamera.
             fps: 30,
-            // Area pindai besar mengikuti hampir seluruh frame kamera.
-            // Tetap diberi margin simetris agar garis pembatas terlihat rapi.
+            // Area putih dibuat sekitar setengah layar kamera.
+            // Lebar 78% dan tinggi 52% agar besar, simetris, dan nyaman untuk barcode.
             qrbox: (viewfinderWidth, viewfinderHeight) => ({
-              width: Math.floor(viewfinderWidth * 0.90),
-              height: Math.floor(viewfinderHeight * 0.90)
+              width: Math.floor(viewfinderWidth * 0.78),
+              height: Math.floor(viewfinderHeight * 0.52)
             }),
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
