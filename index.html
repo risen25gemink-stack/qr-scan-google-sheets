@@ -311,12 +311,13 @@
           {
             // Kecepatan cukup tinggi tanpa memaksa rasio video kamera.
             fps: 30,
-            // Area putih dibuat sekitar setengah layar kamera.
-            // Lebar 78% dan tinggi 52% agar besar, simetris, dan nyaman untuk barcode.
-            qrbox: (viewfinderWidth, viewfinderHeight) => ({
-              width: Math.floor(viewfinderWidth * 0.78),
-              height: Math.floor(viewfinderHeight * 0.52)
-            }),
+            // Area putih dibuat lebih besar dan tetap SQUARE (lebar = tinggi).
+            // Ukuran mengikuti sisi terpendek frame agar tidak terpotong.
+            // 82% memberi ruang scan besar dengan margin yang tetap rapi dan simetris.
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const side = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.82);
+              return { width: side, height: side };
+            },
             // Batasi format ke format yang umum agar decoder tidak mencoba terlalu banyak format.
             formatsToSupport: [
               Html5QrcodeSupportedFormats.QR_CODE,
