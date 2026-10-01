@@ -15,23 +15,30 @@
     .scanner-card, .result-card { background: #fff; border-radius: 16px; padding: 14px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); margin-bottom: 16px; }
     #reader { width: 100%; overflow: hidden; border-radius: 12px; }
     /* Area scan dibuat lebih lebar dan pipih agar cocok untuk barcode 1D. */
+    #reader { position: relative; }
     #reader video { width: 100% !important; height: auto !important; max-height: 100% !important; border-radius: 12px; object-fit: cover; display: block; }
     #reader__scan_region { min-height: 180px; position: relative; }
     #reader__scan_region img { display: none !important; }
-    /* Area scan sedang, tetap persegi. */
-    #qr-shaded-region {
+
+    /* Sembunyikan overlay bawaan html5-qrcode.
+       Overlay kita sendiri dibuat 1:1 sehingga tidak bisa berubah menjadi rectangle. */
+    #qr-shaded-region { display: none !important; }
+
+    /* Overlay scanner custom: SELALU square, sisi sama panjang. */
+    .scanner-square-overlay {
+      position: absolute !important;
       width: 240px !important;
       height: 240px !important;
-      max-width: 240px !important;
-      max-height: 240px !important;
-      min-width: 240px !important;
-      min-height: 240px !important;
       left: 50% !important;
       top: 50% !important;
-      right: auto !important;
-      bottom: auto !important;
       transform: translate(-50%, -50%) !important;
+      border: 3px solid rgba(255,255,255,0.95);
+      border-radius: 0;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 20;
     }
+
     /* Jangan biarkan instance kamera lama menghasilkan layar kedua. */
     #reader > div:not(#reader__scan_region) { display: none !important; }
     .box-group { margin-bottom: 14px; }
@@ -261,6 +268,18 @@
       document.body.appendChild(script);
     }
 
+    function ensureScannerSquareOverlay() {
+      const readerElement = document.getElementById("reader");
+      if (!readerElement) return;
+
+      const oldOverlay = readerElement.querySelector(".scanner-square-overlay");
+      if (oldOverlay) oldOverlay.remove();
+
+      const overlay = document.createElement("div");
+      overlay.className = "scanner-square-overlay";
+      readerElement.appendChild(overlay);
+    }
+
     function onScanSuccess(decodedText) {
       const values = splitScannedData(decodedText);
 
@@ -374,6 +393,9 @@
 
         scannerRunning = true;
         scannerPaused = false;
+        // Overlay custom dibuat setelah html5-qrcode selesai membuat video,
+        // sehingga bentuk visual tidak mengikuti perhitungan ukuran library.
+        ensureScannerSquareOverlay();
         lastScanRawText = "";
         startButton.textContent = "Scanner Aktif";
         setStatus(
