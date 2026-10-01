@@ -258,11 +258,11 @@
       resultElement.textContent = values.join("\n");
       addHistory(values, currentBoxName);
       updateControls();
-      boxNameElement.disabled = true;
+      boxNameElement.disabled = false;
 
       setStatus(
-        "Scan berhasil: " + values.length + " item. Box " +
-        currentBoxName + ".",
+        "Scan berhasil: " + values.length + " item untuk Box " +
+        currentBoxName + ". Anda bisa langsung mengganti Nama Box untuk scan berikutnya.",
         "success"
       );
 
@@ -401,6 +401,9 @@
       scannerRunning = false;
       scannerPaused = false;
       startButton.textContent = "Scan Lagi";
+      boxNameElement.disabled = false;
+      boxNameElement.focus();
+      boxNameElement.select();
 
       try {
         await activeScanner.stop();
@@ -440,7 +443,7 @@
         return;
       }
 
-      const boxName = boxNameElement.value.trim() || currentBoxName.trim();
+      const boxName = currentBoxName.trim();
       if (!boxName) {
         setStatus("Nama box belum diisi.", "warning");
         return;
@@ -479,7 +482,7 @@
         return;
       }
 
-      const boxName = currentBoxName.trim() || boxNameElement.value.trim();
+      const boxName = currentBoxName.trim();
       if (!boxName) {
         setStatus("Nama box tidak ditemukan.", "warning");
         return;
